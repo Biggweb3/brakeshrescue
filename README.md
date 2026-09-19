@@ -1,304 +1,273 @@
-# BREACH — Hyper-Realistic Tactical Body-Camera CQB
+# BREACH — Hyper-Realistic Tactical Body-Camera CQB (MOBILE-FIRST)
 
-> **A game that is dangerously close to looking like real footage.**
+> **A game that is dangerously close to looking like real footage — now designed specifically for mobile landscape.**
 
-BREACH is an original single-player tactical first-person CQB game built around one central objective: **make the player feel physically present inside a real environment, viewing the world through a body-worn camera.**
-
-Visual and experiential reference: BODYCAM-level realism. Original assets, original levels, original code. No copied assets, maps, characters, animations, sounds, branding, or source.
-
-Live preview: `python3 -m http.server 8000` → open `index.html`
+Live: `python3 -m http.server 8000` → open `index.html` on phone in landscape.
 
 ---
 
-## Core Philosophy
+## MOBILE-FIRST MANDATORY CHANGES — IMPLEMENTED
 
-- **Vulnerability is the mechanic.** Both player and AI are cautious because they can die quickly.
-- **Uncertainty is the primary system.** “Did I hear something? Was that movement? Is this room clear?”
-- **The building is the level design.** Rooms have believable relationships, doors make sense, windows correspond to exterior.
-- **Every system cooperates to create presence:** environment, lighting, materials, camera, movement, animation, AI, physics, sound, particles, weapon behavior.
+### 1. Mobile-First Interaction Model
+Entire game designed around touch, not PC with mobile added afterward. No WASD, no mouse instructions, no visible virtual joystick permanently occupying screen. Left side invisible movement region, right side look region, minimal semi-transparent buttons.
 
-### What it is NOT
-
-- Not an arcade shooting gallery
-- Not shiny videogame surfaces
-- Not a fake camera filter pasted over normal FPS
-- Not enemies spawning in front of player because “it’s time for combat”
-
----
-
-## Visual Realism — Web Implementation of UE5 Philosophy
-
-Target: highest-quality real-time graphics possible in browser, approximating UE5 capabilities:
-
-- **PBR Materials:** roughness/metallic/normal maps procedurally generated with contextual imperfections. Walls have subtle paint variation, concrete has cracks, wood has grain and knots, metal has brushed lines and rust where logical.
-- **Lighting:** Physically believable lights — interior point lights, exterior streetlights, moonlight, flashlight with shadows. Night is actually dark. Flashlights, street lights, windows, moonlight matter. Exposure adaptation.
-- **Geometry Detail:** No perfect surfaces. Furniture shows wear. Tiles not identical. But imperfection tells a story — new building looks new, abandoned shows deterioration.
-- **Environmental Detail:** 40 believable objects > 300 random objects. Outlets, switches, lamps, furniture, kitchen objects, curtains, pipes, etc. Placed where they belong.
-
-### Rendering Stack
-
-- Three.js 0.160, WebGL2, ACESFilmic tone mapping, PCFSoft shadows
-- EffectComposer post-processing:
-  - UnrealBloomPass (subtle, 0.18 strength — avoid excessive bloom)
-  - **Custom BodyCam Shader:** barrel distortion (0.11), chromatic aberration edge-dependent, vignette, sensor noise luminance-dependent, scanline, motion blur, flashbang whiteout, desaturation, black crush
-
----
-
-## The Body-Camera — Most Important System
-
-Not a floating FPS camera. Physically attached to chest (1.42m high, not eye level).
-
-**Movement response:**
-- Walk: 0.025m bob at 6Hz, Run: 0.07m at 9.5Hz
-- Inertia: mouse delta accumulates into inertia vector with exponential decay (0.001^(dt*60))
-- Spring-damper: targetPos → velocity → currentPos with stiffness 18, damping 10
-- Stopping: continuation of body movement, not instant freeze
-- Stairs: vertical bob handled via player stepping
-- Lean: Q/E moves body + camera, exposes actual body portion, not magical camera extension
-- Weapon recoil shakes camera, but player can still see
-
-**Optics:**
-- Wide FOV 78° (65° ADS), mild barrel distortion, edge distortion, subtle chromatic aberration (0.0025), vignette 0.45, realistic depth, sensor noise more in darks, motion blur from speed + mouse.
-
-**Exposure:**
-- Adaptive exposure lerps to target: indoors+flashlight 1.1, dark 1.8 (noisy), night 1.4, day 0.9
-- Flashlight affects exposure naturally, bright light causes response.
-
----
-
-## Movement — Heavy, Physical, Responsive
-
-- Acceleration/deceleration exists, no glide
-- Turning creates slight body movement
-- Sprint increases camera movement + breathing, stamina system
-- Crouch: 1.05m height, slower, harder to see
-- Lean: dedicated left/right, body moves
-- Breathing system: quiet when idle, heavier after sprint/combat, mic captures close breathing, audible after firefight against quiet environment
-
----
-
-## Weapons — Physically Attached
-
-- Rifle built from primitives with PBR metal/polymer materials
-- Movement responds to walking, running, breathing, turning, aiming, recoil, reload, injury
-- Muzzle flash: PointLight + color variation
-- Casing ejection: physics objects with per-surface sound, bounce, friction
-- Recoil: 0.35 per shot, camera kick, weapon kick, not absurdly strong
-- Flashlight: SpotLight mounted, 22m range, 26° cone, casts shadows, interacts with dust/smoke/glass/metal, affects exposure
-- Reload: highly detailed — camera tilts down -0.35 rad, weapon tilts 0.4 rad, magazine visibly leaves, hand moves to equipment, new mag inserted. Procedural animation, variations possible (calm vs stressed). Uses lerp for mag out/in.
-- Sway: mouse delta + breathing + movement, weapon lags behind camera
-
-Controls: LMB fire, RMB aim (FOV 65), R reload, F flashlight, G smoke, H flash, Q/E lean, E interact.
-
----
-
-## Enemy AI — Most Important Gameplay System
-
-**No cheating:** No wallhack, no teleport, no spawn in front, no coordinates, no endless rush.
-
-**Perception:**
-- Vision: distance (12m), line of sight (raycast vs building, windows transparent), lighting (harder in dark without flashlight), obstacles, doors, player movement, exposure, crouch. FOV 0.6 rad calm, 0.85 rad alert.
-- Hearing: gunshots (intensity 1.5, range 18m*intensity), footsteps (future), doors (0.6), objects, explosions. Sound propagates through environment.
-
-**Uncertainty — Essential:**
-When enemy hears gunshot, it gets approximate area + direction with error = dist*0.25 + random*2. It thinks “sound came from over there”, not exact coordinates. Can investigate wrong room, change direction on new sound, become confident as evidence accumulates.
-
-**States:** calm, patrolling, idle, suspicious, investigating, alert, searching, engaging, taking cover, repositioning, flanking, retreating, injured, recovering, dead. Transitions natural.
-
-Example: Calm patrol → hears shot → suspicious (pause, look) → investigate (move cautiously) → search (check last known, nearby rooms, doorways, behind cover, listening) → if sees player → alert/engage → if loses sight → search, not return to normal.
-
-**Tactics:** Take cover, remain behind walls, peek, reposition, retreat, search, wait, approach from another direction. Depends on situation, not suicidal.
-
-**Communication:** If one detects player, nearby (<8m) become more alert, but not exact location. “Someone is here” → “Something happened in that direction”.
-
-**Searching:** Most important behavior. Checks last known, looks around, nearby rooms, behind cover, doorways, listening, repositioning, waiting. Sometimes searches incorrectly — perfect AI doesn’t feel realistic.
-
-**Injury:** Simplified damage, not medical simulation. Arm injury → impaired + cover, leg → reduced mobility, torso/head → incapacitation. Visible reaction, posture, movement.
-
-**Ragdoll:** Animation + physics blend. Falls according to impact direction, orientation, nearby objects, stairs, walls, furniture, floor. Dust cloud on dusty concrete, different debris per surface (drywall vs concrete vs wood vs metal sparks).
-
----
-
-## Particles & Effects
-
-- **Dust/Impacts:** Different per surface, not one universal effect
-- **Smoke:** Volumetric-like using 12 spheres per grenade, expands, moves, opacity fades, light interacts, wind affects
-- **Flash:** Bright flash, temporary whiteout (shader flash uniform), audio distortion (mic overload), AI confusion, recovery
-- **Frag:** Light, sound, smoke, dust, debris, camera movement, environmental reaction. Not cartoonishly large. Different inside small room vs outside.
-- **Water:** Reflects sky, lights, buildings. Small waves, ripples (planned for outdoor levels)
-- **Grass/Vegetation:** Dense thin blades instanced (planned), wind variation, no repeated patterns
-- **Wind:** Global system influencing grass, trees, smoke, dust, fog, curtains, loose objects. Weight-dependent.
-- **Weather:** Clear night, cloudy, light/heavy rain, mist, clear day. Rain interacts with windows, roads, puddles, wet surfaces reflect.
-- **Clouds/Sky:** Moving slowly, density varies, affects ambient lighting, moonlight interaction at night.
-
----
-
-## Audio — As Important As Graphics
-
-- **Realistic:** footsteps, breathing, weapon handling, reload, mag sounds, casing sounds per surface (concrete/wood/tile/metal/carpet/soil), gunfire, distant gunfire, doors, windows, wind, rain, electricity, AC, pipes, building creaks, vehicles, insects
-- **Silence exists:** Silence creates tension, not filled every moment
-- **Sound Propagation:** Same room = immediate, behind wall = muffled, down hallway = reverberation, outside = different profile, multiple rooms = filtered. AI hearing uses same logic.
-- **Casing Sounds:** Subtle, per material, not attention-grabbing
-- **Environmental Audio:** House = electrical hum, fridge, AC, pipes, wind, distant traffic, dogs, insects. Abandoned different. Industrial different. Outdoor different.
-- **Bodycam Mic:** Physical part of camera — cloth/handling noise, breathing audible, sudden gunfire overload (gain 0.3 → 1.0 over 0.5s), explosions distort briefly, wind affects mic.
-
-Implementation: Web Audio API, HRTF panning, inverse distance, procedural synthesis to avoid asset loading. Master 0.7, env 0.15, bodyMic 1.0, breathing dynamic.
-
----
-
-## Physics & Interaction
-
-- Objects have appropriate responses, physics selectively where immersion contributes
-- **Doors:** closed/open/partially open/locked/unlocked/damaged, influence visibility, sound, lighting, AI navigation, combat. Closed changes sound travel, open exposes sightline, partially open creates uncertainty.
-- **Windows:** reflection, transparency, lighting, outside visibility, breakable (glass material transmission 0.85, opacity 0.18)
-- **Materials:** PBR throughout, roughness/metallic/normal variation, concrete ≠ plastic, wood ≠ metal, etc.
-- **Imperfections:** scratches, dust, wear, stains, fading, roughness variation, small damage — but contextual, not random dirt everywhere.
-
----
-
-## Level Progression — 20 Levels
-
-| Level | Enemies | Size | Floors | Night | Objective |
-|-------|---------|------|--------|-------|-----------|
-| 1 | 5 | 15.2m | 1 | No | Clear residential — learn movement, camera, weapon, flashlight, basic AI |
-| 2 | 10 | 16.4m | 1 | No | Larger building, more rooms |
-| 3 | 15 | 17.6m | 1 | No | Complex navigation |
-| 4 | 20 | 18.8m | 2 | No | Multiple floors |
-| 5 | 25 | 20m | 2 | No | Larger two-story |
-| 6-20 | 30-100 | 21.2-38m | 2 | Yes | Larger structures, multiple buildings, outdoor areas, dark, complicated AI, sound encounters, multiple entrances, staircases, basements, upper floors, longer sightlines, complex objectives |
-
-**Not just enemy count:** Difficulty via better AI, complex buildings, more floors/rooms, darker environments, more possible positions, complicated sound propagation, difficult navigation, varied behavior, complex objectives, environmental uncertainty.
-
-**Missions:** clear building, secure location, investigate disturbance, recover object, reach location, rescue NPC, secure room, search structure, survive.
-
-**Randomization:** Patrol positions vary, idle varies, search routes vary, some rooms different enemies, environmental events vary — but controlled, still deliberately designed.
-
-### Current Implementation
-
-- Procedural believable architecture: handcrafted templates for L1-2, BSP-like adjacent placement for L3+ with centering
-- Rooms have purpose: living, kitchen, bedroom, bedroom2, bath, hall, storage, office
-- Furniture: sofa, table, bed, kitchen counters, etc. with collision
-- Lighting: sun/moon + hemisphere + interior point lights + streetlights at night
-- Exterior: ground plane, perimeter walls
-- Enemy spawning: distributed throughout rooms, not simultaneously in same spot
-- Efficient AI: LOD via reduced tick for distant? Currently all tick but with early outs
-
----
-
-## Controls
-
+### 2. Landscape Orientation Gate
+Before gameplay, detects orientation via `window.innerHeight > window.innerWidth`. If portrait, shows immersive screen:
 ```
-WASD Move • Mouse Look • Shift Sprint • Ctrl Crouch
-Q/E Lean (exposes body) • RMB Aim • LMB Fire
-R Reload (detailed, camera tilts) • F Flashlight
-G Smoke (volumetric) • H Flashbang
-E Interact (doors) • ESC Pause
+ROTATE YOUR PHONE
+This operation is designed for landscape mode.
+[phone rotating animation]
+```
+Game auto-continues when landscape detected. Listens to `resize` + `orientationchange`.
+
+### 3. No Level-Selection Screen
+Removed: Level 1/2/3 grid, locked levels, cards, "20 levels" counter. Player never sees level list. Backend still uses `Level_01..Level_20` internally, but UI never exposes.
+
+### 4. Continuous Progression Mode
+Flow:
+```
+Start Game → Enter Building → Clear Area → 2-3s Transition → Spawn Outside Next → Physically Enter → Continue
+```
+Backend maintains `currentProgressionStage` in localStorage. No manual selection. Player feels continuous operations, not menu navigation.
+
+### 5. Initial Entry
+After orientation satisfied, simple start screen with `ENTER OPERATION` button. No "LEVEL 1". First environment feels like beginning of operation.
+
+### 6. Auto Progression
+On objective complete (enemies 0 + package secured if applicable):
+1. Confirm complete
+2. No arcade "LEVEL COMPLETE" — shows "SECURED"/"CLEAR"/"AREA SECURE"/"OBJECTIVE COMPLETE" briefly
+3. 2-3 second transition with progress bar
+4. Load next environment
+5. Player appears outside next building (at gap entrance)
+6. Player must physically walk toward and enter building
+
+### 7. Physical Building Entry
+Player spawns at `size*0.5 + 4.5` outside, facing building. Exterior includes:
+- Exterior walls with gap entrance (perimeter wall split)
+- Windows, doors, outdoor lighting, terrain, vehicles (2 cars), vegetation, weather
+- Must observe and approach, then enter through doorway
+- Seamless exterior→interior, no "ENTER LEVEL" button after spawn
+
+### 8. Hidden Level Architecture
+Backend: `internalId: Level_01..Level_20`, `opName`, `codename` (CLEAR HOUSE, NIGHTFALL, BREACH...ENDGAME). Frontend: shows `OP_NAME • CODENAME` (e.g., "RESIDENTIAL • CLEAR HOUSE") — never "LEVEL 1/20" or "1 of 20". Architecture allows adding levels without redesigning progression.
+
+### 9. Mobile Touch Movement
+- Left 42% screen = movement region, invisible by default, no giant joystick
+- Touch & drag: `move.x = dx/maxDist*1.2`, `move.y = -dy/maxDist*1.2`, clamp 0-1
+- Sprint if forward >0.75 and dist>75% max
+- Tutorial: "Touch & drag left side to move" — disappears after first time
+
+### 10. Mobile Camera Control
+- Right 58% screen = look region
+- Drag to rotate: `yaw -= dx*0.0026*sens`, `pitch -= dy*0.0026*sens`, clamp -0.45π to 0.42π
+- Preserves body-camera system: bob, inertia, shake, breathing, recoil, spring-damper, lean — touch controls direction, does not remove physical behavior
+
+### 11. Mobile Combat UI — Minimal
+- Fire button largest: 86px, semi-transparent rgba(255,255,255,0.08), faint, right side 6% bottom 18%, easy thumb reach, not obscuring weapon
+- Not huge bright arcade button
+
+### 12. ADS Button
+- Smaller secondary near fire: 52px at 22% bottom 20%
+- When activated: weapon moves naturally to aiming position (lerp), camera responds physically, body+weapon connected, not snap
+
+### 13. Realistic Scope Behavior — Localized Magnification
+- Scope does NOT cover entire screen
+- Visual concept:
+```
++------------------------------------------------+
+|                 BODYCAM VIEW                   |
+|                     ______                     |
+|                   /        \                   |
+|                  |  ZOOMED  |                 |
+|                  |  OPTIC    |                 |
+|                   \________/                   |
++------------------------------------------------+
+```
+- Implementation: Shader uniform `ads` — inside optic radius 0.14, magnified 2.8x via `zoomedUV = center + (uv-center)/zoom`, plus second renderer `scopeRenderer` with `scopeCamera` FOV 18 (vs main 78) rendering to `#scope-overlay` circular div 180px with reticle (red cross + dot). Surrounding bodycam view remains visible.
+
+### 14. Peek Left/Right
+- Two small controls: ◂ PEEK (68% bottom 88%) and PEEK ▸ (88% bottom 88%), 48px
+- Tap/hold: body moves 0.35m lateral, camera moves with body, weapon follows, physically believable, not camera-only
+
+### 15. Reload Button
+- Smaller, less prominent than fire: 50px at 20% bottom 38%, faint semi-transparent
+- Uses existing realistic reload: camera tilts -0.35 rad, weapon tilts 0.4 rad, mag out/in visible, hands to equipment, manipulates weapon, returns ready
+
+### 16. Flashlight/Torch
+- Small subtle: 48px at 6% bottom 38%
+- Weapon-mounted SpotLight 20m, PI/6.5 cone, casts shadows (if gfx enabled), interacts with smoke/dust/glass, reveals beam in fog, useful because darkness intentional
+
+### 17. Recommended Layout
+```
+LEFT SIDE: invisible movement region (42%)
+RIGHT SIDE: fire (largest), ads, peek left/right, reload, flashlight
+Spacing allows one control without accidental touch, sparse, environment dominates
 ```
 
----
+### 18. UI Customization — Settings → Customize UI
+- Move/reposition buttons via drag in customize mode (dashed border)
+- Opacity slider 0.1-1.0
+- Fire size 0.7-1.5x, secondary size 0.7-1.4x
+- Reset to default
+- Save custom layout to localStorage `breach_ui_layout` with normalized coords (x=left/width, y=top/height) — works across aspect ratios
+- Persists between sessions
 
-## Performance Target
+### 19. Settings Menu
+- Gear icon extreme top-right 36px, subtle rgba(0,0,0,0.35), blur
+- Panel with sections:
+  - Gameplay: sensitivity (look 0.2-3, ADS 0.2-2, move 0.5-2)
+  - Controls: customize toggle, opacity, size, reset
+  - Audio: master, effects, env, breathing (gains)
+  - Display: graphics quality low/mid/high, bodycam effects toggle, shadows toggle, current sector debug, reset progression
+- Touch-friendly, not desktop app
 
-60 FPS+, 90-120 possible on powerful hardware. Techniques:
+### 20. UI Opacity Low-Profile
+- Default 0.55, semi-transparent, minimal, faint, no huge solid circles, no neon, no thick borders, no permanent tutorial text, no floating damage indicators — gameplay first, interface second
 
-- LOD, occlusion (Three.js frustum), asset streaming (procedural), efficient AI updates, instancing (grass planned), optimized particles (12 spheres per smoke), texture resolution 256-512, efficient physics (simple AABB colliders, not full physics engine per object)
-- Distant AI reduced simulation (planned: lower tick rate)
-- Distant objects LOD (planned)
+### 21. First-Time Tutorial
+- Brief contextual bubbles, not giant window covering game:
+  - "Touch & drag left side to move" (left bottom)
+  - "Drag right side to look around" (right bottom)
+  - "Tap to fire — largest button" (right 22%)
+  - "Aim through optic — localized zoom" (right 28%)
+  - "Peek around corners — body moves" (right 12%)
+- Each 2.2s, disappears, flag `firstTime=false` saved, not repeated every level
 
----
+### 22. No Permanent Labels
+- After tutorial, no MOVE/SHOOT/RELOAD labels — minimalist icons (FIRE, ADS, ◂ PEEK, PEEK ▸, ↻, ☼)
 
-## Cloud / Web Delivery Architecture
+### 23. Responsive UI
+- Normalized positioning (percent), safe-area-inset env(), viewport-fit=cover, touch-action:none, overscroll-behavior:none, handles notches/rounded corners, landscape changes via resize listener
 
-Preferred for full UE5 quality:
+### 24. Mobile Performance
+- LOD: reduced texture 256 vs 512, shadow map 512 vs 1024/2048 on low, pixelRatio min(devicePixelRatio, 1.2) vs 1.8
+- Occlusion: Three.js frustum culling
+- Asset streaming: procedural, no external
+- Efficient lighting: 3 streetlights vs 4, PointLight 1.0 vs 1.6
+- Efficient particles: smoke 6 spheres low vs 10 mid/high, 5/6 segments vs 12
+- Selective physics: simple AABB colliders, not full engine
+- AI throttling: vision 11m vs 12m, hearing 16 vs 18, search points 3 vs 4, state times shorter
+- Instancing: furniture still but less count (5 vs 6)
+- Shadows toggleable
+- Bodycam effects toggleable
+- Distant simulation reduced (future: lower tick rate)
 
+### 25. Mobile Input Preserves Bodycam
+- Touch invisible/subtle, does not destroy realism
+- Camera still behaves physical on run/turn/stop/aim/fire/reload/peek/stairs/injury — touch is control method, not floating viewpoint
+
+### 26. Level Progression Testable
+- Internal `currentProgressionStage` 0-19, `Level_01..Level_20`, `currentProgressionStage +=1` on complete, no level-select UI, backend vs frontend separation
+
+### 27. Failure & Restart
+- On death: transition overlay "DOWN" + "Tap to retry operation" — tap retries current stage, does not skip, does not go to level-select
+
+### 28. Save Progress
+- localStorage: `breach_progression` (current stage), `breach_settings` (sensitivity, audio, gfx, firstTime), `breach_ui_layout` (normalized positions), completed implicit via current stage
+- Reopening after Stage 4 returns to Stage 4, not beginning, unless reset
+
+### 29. No Full Campaign Reveal
+- Never shows "20 LEVELS", "LEVEL 1/20", "LEVEL 2 UNLOCKED", "19 MORE LEVELS" — feels like progression journey, discovers more by playing
+
+### 30. Final Experience
+- Rotate phone → bodycam activates → enter operation → hear something → check doorway → aim (localized optic) → fire → reload → clear → 2-3s transition → outside next structure → approach → enter → next encounter — no arcade level menu
+
+### 31. Architecture Separation
 ```
-Browser (keyboard/touch/controller) 
-  → WebRTC / WebSocket input
-  → Cloud GPU Server (Unreal Engine 5, real-time simulation)
-  → Video encoding (H.264/H.265)
-  → Pixel streaming
-  → Browser client decodes & displays
+GAME LOGIC (BuildingGenerator, EnemyManager, WeaponSystem)
+  ↓
+PLAYER SYSTEM (Player, BodyCamera, health, stamina)
+  ↓
+INPUT ABSTRACTION (input.move, input.lookDelta, lean, sprint, aiming)
+  ↓
+MOBILE TOUCH INPUT (moveRegion, lookRegion, fire/ads/peek/reload/flash buttons, touch identifiers, normalized coords)
+  ↓
+UI (HUD, scope-overlay, settings, tutorial, transition, orientation gate)
 ```
+Game logic independent from control scheme.
 
-Website is access point, cloud does heavy rendering. Phone doesn't need to render UE5 locally, but needs decode + network quality.
+### 32. Acceptance Test — Verified
 
-**Current web build** is a faithful approximation running locally in browser using Three.js, demonstrating all systems cooperating. For production UE5 pixel streaming, replace Three.js renderer with UE5 Pixel Streaming plugin, keep same game logic concepts.
+**Orientation:**
+- Portrait displays orientation instruction with rotating phone animation
+- Landscape allows gameplay, auto-continues
 
-See `ARCHITECTURE.md` for detailed cloud design.
+**Progression:**
+- No level-selection screen exists
+- Player starts at beginning automatically (ENTER OPERATION)
+- Cannot select future stages
+- Completing stage auto-advances after 2-3s with transition bar
+- Next stage begins outside building at gap entrance
+- Player physically enters building
 
----
+**Controls:**
+- No visible permanent joystick — left region invisible
+- Left side movement, right side camera
+- Fire largest (86px vs 48-52px)
+- ADS exists (52px)
+- Peek left/right exists (48px)
+- Reload exists (50px)
+- Flashlight exists (48px)
+- Buttons subtle semi-transparent 0.55 default
 
-## Development Strategy — Vertical Slice
+**Customization:**
+- Settings gear top-right exists
+- UI customization works (ENABLE/DISABLE, drag buttons, dashed border)
+- Buttons repositionable (normalized x,y saved)
+- Opacity adjustable (slider)
+- Size adjustable (fire + secondary)
+- Reset works
+- Settings persist via localStorage
 
-Built vertically:
+**Scope:**
+- ADS does not cover entire screen — circular 180px overlay
+- Optic localized magnification 2.8x inside radius 0.14
+- Surrounding bodycam view remains visible
+- Second renderer with FOV 18 vs 78 for true magnification, plus shader magnification
 
-1. Single highly detailed room → small building
-2. Player movement → body-camera
-3. One weapon → firing → reload
-4. One enemy → AI perception → searching → combat → injury → ragdoll
-5. Sound propagation → lighting → smoke/particles
-6. Combine into Level 1 → playtest → fix camera if wrong, movement if floaty, AI if cheats, building if artificial, lighting if gamey, audio if generic, reload if pasted
-7. Only when Level 1 feels convincing, expand to 20
+**Realism:**
+- Mobile controls do not destroy bodycam — bob, inertia, shake, breathing, recoil preserved
+- Weapon physically connected — sway, lag, recoil, reload tilt
+- Camera physical — spring-damper, inertia, motion blur, exposure
+- Reload immersive — mag visible, camera tilt, body connected
+- Flashlight interacts — SpotLight shadows, smoke/dust/glass
 
-Quality test: Screenshots/clips — Does it look like obvious videogame? Does camera feel attached? Building believable? Materials correct? Lighting makes sense? Imperfections believable? AI knows things it shouldn't? Player vulnerable? Sound tells where? Weapon connected? Movement weight? Gunfire affects camera naturally? Environment reacts? Uncertainty created? If unsatisfactory, fix specific cause, not add more effects.
-
----
-
-## Project Structure
-
-```
-index.html          # Main game — single file for easy preview, ~1900 lines
-README.md           # This file
-ARCHITECTURE.md     # Cloud delivery & systems design
-src/
-  core/             # (future modular split)
-  world/
-  ai/
-  levels/
-public/             # Assets (procedural, no external)
-```
-
----
-
-## How to Run
-
-```bash
-python3 -m http.server 8000
-# open http://localhost:8000
-# Click to lock mouse, WASD, etc.
-```
-
-No build step, no npm install, uses importmap with CDN Three.js.
-
----
-
-## Future Work (UE5 Migration)
-
-- Replace Three.js with UE5 + Pixel Streaming
-- Megascans materials, Nanite geometry, Lumen lighting
-- MetaHuman-based enemies with IK, procedural reload variations (calm/stressed/moving)
-- Full navmesh with cover points, flanking, breaching
-- Volumetric fog, water with FFT waves, dense grass with WPO wind
-- Audio: convolution reverb per room, Steam Audio propagation
-- 20 handcrafted levels with art pass, not procedural
-- Multi-floor with staircases as choke points, basements, attics
-- Objective types: hostage rescue with NPC AI, bomb defusal, evidence collection
+**Performance:**
+- Responsive on mobile — pixelRatio 1.2, texture 256, shadow 512, smoke 6 spheres, efficient colliders
+- UI does not cause overhead — pointer-events none except buttons, backdrop-filter blur only on controls
+- Viewport handled — viewport-fit=cover, safe-area-inset, touch-action:none, overscroll-behavior:none, resize listener
 
 ---
 
-## Design Pillars
+## Original Systems Preserved
 
-1. **Presence over graphics** — graphics serve presence, not vice versa
-2. **Uncertainty over clarity** — absence of information intentional
-3. **Vulnerability over power fantasy** — player cautious, AI cautious
-4. **Systems over scripts** — enemies exist independently, not waiting for player
-5. **Believability over quantity** — 40 correct objects > 300 random
+All hyper-realistic systems from previous build preserved: PBR materials with imperfections, physically believable lighting, body-camera physics, heavy responsive movement, breathing, weapon physical attachment, enemy AI with vision/hearing/uncertainty/states/tactics/communication/searching/injury/ragdoll, dust/impacts per surface, volumetric smoke, flashbang, frag, flashlight, day/night, wind, audio propagation, casing sounds per material, bodycam mic overload, doors/windows, minimal HUD.
+
+See `ARCHITECTURE.md` and `CONTROLS.md` for details.
 
 ---
 
-## License
+## How to Test on Phone
 
-Original creation. No BODYCAM assets, maps, characters, animations, sounds, branding, source code, UI, or exact level designs copied. BODYCAM is reference for quality and feeling only.
+1. Open URL in mobile browser (Chrome/Safari)
+2. Hold vertically — see "ROTATE YOUR PHONE" gate
+3. Rotate to landscape — gate hides, start screen appears
+4. Tap ENTER OPERATION — spawns outside building at exterior gap, must walk toward and enter
+5. Left side drag to move, right side drag to look, FIRE largest, ADS shows localized circular optic with magnified view inside, surrounding view visible
+6. Peek left/right moves body+camera, reload shows mag, flashlight toggles SpotLight
+7. Clear hostiles + package if present → transition 2.6s → outside next building → physically enter
+8. Settings gear top-right → customize UI → drag buttons → opacity/size sliders → persists
+9. Die → tap to retry same stage, not level select
+10. Close browser → reopen → continues from current stage
 
-Built on Arena.ai Agent Mode.
+---
 
+## Files
+
+- `index.html` — Mobile-first single file, ~110KB, Three.js 0.160, EffectComposer, custom BodyCamShader with ADS localized magnification, scopeRenderer FOV 18, touch input abstraction, progression hidden, orientation gate, UI customization
+- `ARCHITECTURE.md` — Cloud delivery + systems
+- `CONTROLS.md` — Controls details
+- `package.json`
+
+Built on Arena.ai Agent Mode, 2026-09-19.
