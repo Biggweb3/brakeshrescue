@@ -117,8 +117,8 @@
 <script type="importmap">
 {
   "imports": {
-    "three": "./node_modules/three/build/three.module.js",
-    "three/addons/": "./node_modules/three/examples/jsm/"
+    "three": "./vendor/three/build/three.module.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
   }
 }
 </script>
@@ -255,6 +255,50 @@
     </div>
   </div>
 </div>
+
+<script>
+// Emergency fallback outside module - ensures loading never stuck even if module fails
+(function(){
+  var loadingHidden=false;
+  function forceHide(){
+    if(loadingHidden) return;
+    var ld=document.getElementById('loading');
+    var ss=document.getElementById('start-screen');
+    var og=document.getElementById('orientation-gate');
+    if(ld && !ld.classList.contains('hidden')){
+      console.warn('Emergency force hide loading - module may have failed');
+      ld.classList.add('hidden');
+      loadingHidden=true;
+      var isPortrait=window.innerHeight>window.innerWidth;
+      if(isPortrait){
+        if(og) og.classList.remove('hidden');
+        if(ss) ss.classList.add('hidden');
+      }else{
+        if(og) og.classList.add('hidden');
+        if(ss) ss.classList.remove('hidden');
+      }
+      var lt=document.getElementById('loading-text');
+      if(lt) lt.textContent='Fallback mode - tap ENTER';
+    }
+  }
+  setTimeout(forceHide, 4500);
+  window.addEventListener('error', function(e){
+    console.error('Global error (outside module)', e.message);
+    setTimeout(forceHide, 800);
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    console.error('Unhandled rejection (outside module)', e.reason);
+    setTimeout(forceHide, 800);
+  });
+  document.addEventListener('DOMContentLoaded', function(){
+    var ld=document.getElementById('loading');
+    if(ld){
+      ld.addEventListener('click', function(){ forceHide(); });
+      ld.addEventListener('touchstart', function(){ forceHide(); }, {passive:true});
+    }
+  });
+})();
+</script>
 
 <script type="module">
 import * as THREE from 'three';
