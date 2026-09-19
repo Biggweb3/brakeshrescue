@@ -1407,14 +1407,23 @@ class BuildingGenerator{
         }
       }
       group.add(wallGroup);
-      this.colliders.push({x:w.x,z:w.z,w:w.w,d:w.d,rot:w.rot,type:'wall'});
+      if(hasDoor&&!isExterior&&i%2===0){
+        // Door wall: only left/right sections block, gap is free. Top is above player (2.05-2.8) so no ground collision.
+        const doorW=0.9,leftW=(w.w-doorW)/2;
+        this.colliders.push({x:w.x-(w.w/2-leftW/2),z:w.z,w:leftW,d:w.d,rot:w.rot,type:'wall'});
+        this.colliders.push({x:w.x+(w.w/2-leftW/2),z:w.z,w:leftW,d:w.d,rot:w.rot,type:'wall'});
+        // door mesh itself will be checked in checkCollisions for open/closed state
+      }else{
+        this.colliders.push({x:w.x,z:w.z,w:w.w,d:w.d,rot:w.rot,type:'wall'});
+      }
     });
   }
   populateFurniture(group,rooms,def){
     rooms.forEach(room=>{
-      const count=room.type==='living'?5:room.type==='kitchen'?4:room.type==='bedroom'?3:2;
+      const count=room.type==='living'?4:room.type==='kitchen'?3:room.type==='bedroom'?2:1; // reduced count to avoid blocking
       for(let i=0;i<count;i++){
-        const fx=room.x+0.8+Math.random()*(room.w-1.6), fz=room.z+0.8+Math.random()*(room.h-1.6); let mesh;
+        // Keep furniture away from walls/doors (1.4m margin) to ensure player can enter rooms without hindrance
+        const fx=room.x+1.4+Math.random()*(room.w-2.8), fz=room.z+1.4+Math.random()*(room.h-2.8); let mesh;
         if(room.type==='living'){ if(i===0){ mesh=new THREE.Mesh(new THREE.BoxGeometry(1.8,0.7,0.8), new THREE.MeshStandardMaterial({color:0x3a3a42,roughness:0.9})); mesh.position.set(fx,0.35,fz); } else { mesh=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.8,0.5), this.materials.wood); mesh.position.set(fx,0.4,fz); } }
         else if(room.type==='kitchen'){ mesh=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.9,0.6), new THREE.MeshStandardMaterial({color:0xe8e0d0,roughness:0.7})); mesh.position.set(fx,0.45,fz); }
         else if(room.type.includes('bedroom')){ if(i===0){ mesh=new THREE.Mesh(new THREE.BoxGeometry(1.6,0.5,2.0), new THREE.MeshStandardMaterial({color:0x4a5a6a,roughness:0.9})); mesh.position.set(fx,0.25,fz); } else { mesh=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.6,0.5), this.materials.wood); mesh.position.set(fx,0.3,fz); } }
@@ -1439,10 +1448,15 @@ class BuildingGenerator{
     const gapW=3.0;
     // north wall split into two with gap
     const northLeft=new THREE.Mesh(new THREE.BoxGeometry((size*2-gapW)/2,2.5,0.3), perimMat); northLeft.position.set(-(size*2+gapW)/4,1.25,size); northLeft.userData.isBuilding=true; northLeft.castShadow=true; group.add(northLeft);
+    this.colliders.push({x:northLeft.position.x,z:northLeft.position.z,w:(size*2-gapW)/2,d:0.3,rot:0,type:'wall'});
     const northRight=new THREE.Mesh(new THREE.BoxGeometry((size*2-gapW)/2,2.5,0.3), perimMat); northRight.position.set((size*2+gapW)/4,1.25,size); northRight.userData.isBuilding=true; northRight.castShadow=true; group.add(northRight);
+    this.colliders.push({x:northRight.position.x,z:northRight.position.z,w:(size*2-gapW)/2,d:0.3,rot:0,type:'wall'});
     const south=new THREE.Mesh(new THREE.BoxGeometry(size*2,2.5,0.3), perimMat); south.position.set(0,1.25,-size); south.userData.isBuilding=true; south.castShadow=true; group.add(south);
+    this.colliders.push({x:south.position.x,z:south.position.z,w:size*2,d:0.3,rot:0,type:'wall'});
     const east=new THREE.Mesh(new THREE.BoxGeometry(0.3,2.5,size*2), perimMat); east.position.set(size,1.25,0); east.userData.isBuilding=true; east.castShadow=true; group.add(east);
+    this.colliders.push({x:east.position.x,z:east.position.z,w:0.3,d:size*2,rot:0,type:'wall'});
     const west=new THREE.Mesh(new THREE.BoxGeometry(0.3,2.5,size*2), perimMat); west.position.set(-size,1.25,0); west.userData.isBuilding=true; west.castShadow=true; group.add(west);
+    this.colliders.push({x:west.position.x,z:west.position.z,w:0.3,d:size*2,rot:0,type:'wall'});
     // exterior details: vehicles, vegetation
     for(let i=0;i<2;i++){
       const car=new THREE.Mesh(new THREE.BoxGeometry(1.8,0.9,4.2), new THREE.MeshStandardMaterial({color:0x1e1e24,roughness:0.6,metalness:0.3})); car.position.set((Math.random()-0.5)*size*0.6,0.45,size*0.7+Math.random()*2); car.rotation.y=Math.random()*0.3; car.userData.isBuilding=true; car.castShadow=true; group.add(car);
@@ -1851,10 +1865,55 @@ function createFlash(pos){
   enemyManager.enemies.forEach(e=>{ if(e.position.distanceTo(pos)<5.5){ e.setState('suspicious'); e.alertLevel=0; } });
 }
 
-// --- COLLISION ---
+// --- COLLISION (Fixed to allow entering rooms without hindrance) ---
 function checkCollisions(newPos){
   if(!worldData) return true;
-  for(const col of worldData.colliders){ if(col.type==='floor') continue; const dx=newPos.x-col.x,dz=newPos.z-col.z,cos=Math.cos(col.rot||0),sin=Math.sin(col.rot||0),rx=dx*cos+dz*sin,rz=-dx*sin+dz*cos,hw=(col.w||1)/2+0.38,hd=(col.d||0.3)/2+0.38; if(Math.abs(rx)<hw&&Math.abs(rz)<hd) return false; }
+  // Allow building entrance gap - physical entry point at north side (0, size*0.5-0.5) ±1.2m
+  // This ensures player can enter building from outside without being blocked by outer wall collider
+  if(worldData && worldData.group){
+    // Find building entrance (doorFrame at size*0.5-0.5)
+    const entranceZ = (worldData.rooms && worldData.rooms.length>0) ? null : null;
+  }
+  // Check if near main building entrance (0, ~size*0.5) - always allow
+  // The exterior doorFrame is at (0, size*0.5-0.5), gap 1.2m, should be free
+  const nearEntrance = Math.abs(newPos.x) < 1.1 && Math.abs(newPos.z - (worldData.rooms ? 0 : 0)) < 20;
+  // More precise: if near (0, building north edge), skip wall collision for outer north wall
+  const isNearBuildingEntrance = Math.abs(newPos.x) < 1.0 && newPos.z > -1 && newPos.z < 10;
+
+  // Wall and prop colliders
+  for(const col of worldData.colliders){ 
+    if(col.type==='floor') continue;
+    // Skip outer north wall collider near entrance gap to allow physical entry
+    if(isNearBuildingEntrance && Math.abs(col.x) < 1.5 && col.w>2 && Math.abs(col.z) > 2){
+      // This is likely the building's north wall - allow passage in central 1.2m
+      if(Math.abs(newPos.x) < 0.9) continue;
+    }
+    // Skip perimeter north wall gap (gapW=3.0 at z=size)
+    if(Math.abs(newPos.x) < 1.6 && col.z> (worldData.group? 0:0) && col.w>5){
+      // If this collider is part of north perimeter wall, check if inside gap
+      // Perimeter north wall is at z=size, gap 3.0 centered at 0
+      // Allow if within gap
+      if(Math.abs(col.z) > 10 && Math.abs(newPos.x) < 1.5) continue;
+    }
+    const dx=newPos.x-col.x,dz=newPos.z-col.z,cos=Math.cos(col.rot||0),sin=Math.sin(col.rot||0),rx=dx*cos+dz*sin,rz=-dx*sin+dz*cos,hw=(col.w||1)/2+0.38,hd=(col.d||0.3)/2+0.38; 
+    if(Math.abs(rx)<hw&&Math.abs(rz)<hd) return false; 
+  }
+  // Door colliders - only block when closed
+  let doorBlocked=false;
+  scene.traverse(o=>{
+    if(o.userData.isDoor && !o.userData.open){
+      const base=o.userData.basePos || o.position;
+      const dist=Math.hypot(newPos.x-base.x, newPos.z-base.z);
+      if(dist<0.85){
+        const dx=newPos.x-base.x, dz=newPos.z-base.z;
+        const rot=o.userData.baseRot||0;
+        const cos=Math.cos(rot), sin=Math.sin(rot);
+        const rx=dx*cos+dz*sin, rz=-dx*sin+dz*cos;
+        if(Math.abs(rx)<0.65 && Math.abs(rz)<0.35) doorBlocked=true;
+      }
+    }
+  });
+  if(doorBlocked) return false;
   return true;
 }
 
