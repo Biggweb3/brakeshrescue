@@ -463,6 +463,321 @@ class MaterialFactory{
     },256);
     return new THREE.MeshStandardMaterial({map, roughness:0.35, metalness:0.85});
   }
+  // --- REFERENCE CHARACTER MATERIALS (PBR, matched to supplied reference) ---
+  static tacticalFabric(base='#3d3a33'){
+    const map=createCanvasTexture((ctx,s)=>{
+      ctx.fillStyle=base; ctx.fillRect(0,0,s,s);
+      // subtle weave
+      ctx.strokeStyle='rgba(0,0,0,0.045)'; ctx.lineWidth=0.6;
+      for(let y=0;y<s;y+=3){ ctx.beginPath(); ctx.moveTo(0,y+Math.sin(y*0.1)*0.5); ctx.lineTo(s,y+Math.sin(y*0.1)*0.5); ctx.stroke(); }
+      for(let x=0;x<s;x+=3){ ctx.beginPath(); ctx.moveTo(x+Math.sin(x*0.1)*0.5,0); ctx.lineTo(x+Math.sin(x*0.1)*0.5,s); ctx.stroke(); }
+      // wear variation
+      for(let i=0;i<90;i++){ const x=Math.random()*s,y=Math.random()*s; ctx.fillStyle=`rgba(0,0,0,${Math.random()*0.03})`; ctx.fillRect(x,y,Math.random()*6+2,Math.random()*2+1); }
+      for(let i=0;i<60;i++){ const x=Math.random()*s,y=Math.random()*s; ctx.fillStyle=`rgba(255,255,255,${Math.random()*0.015})`; ctx.fillRect(x,y,2,2); }
+    },256);
+    const mat=new THREE.MeshStandardMaterial({map, roughness:0.86, metalness:0.04});
+    mat.userData.baseColor=base; return mat;
+  }
+  static vestFabric(){
+    const map=createCanvasTexture((ctx,s)=>{
+      ctx.fillStyle='#2c2e28'; ctx.fillRect(0,0,s,s);
+      ctx.strokeStyle='rgba(255,255,255,0.025)'; for(let y=0;y<s;y+=4){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(s,y); ctx.stroke(); }
+      for(let i=0;i<120;i++){ ctx.fillStyle=`rgba(0,0,0,${Math.random()*0.05})`; ctx.fillRect(Math.random()*s,Math.random()*s,3,1.5); }
+    },256);
+    return new THREE.MeshStandardMaterial({map, roughness:0.82, metalness:0.08});
+  }
+  static pouchFabric(){
+    const map=createCanvasTexture((ctx,s)=>{
+      ctx.fillStyle='#2e302a'; ctx.fillRect(0,0,s,s);
+      ctx.fillStyle='rgba(0,0,0,0.08)'; ctx.fillRect(2,2,s-4,4); // top flap shadow
+      for(let i=0;i<50;i++){ ctx.fillStyle=`rgba(0,0,0,${Math.random()*0.04})`; ctx.fillRect(Math.random()*s,Math.random()*s,2,2); }
+    },128);
+    return new THREE.MeshStandardMaterial({map, roughness:0.88, metalness:0.06});
+  }
+  static gloveMaterial(){
+    const map=createCanvasTexture((ctx,s)=>{
+      ctx.fillStyle='#0c0c0e'; ctx.fillRect(0,0,s,s);
+      for(let i=0;i<100;i++){ const x=Math.random()*s,y=Math.random()*s; ctx.fillStyle=`rgba(255,255,255,${Math.random()*0.03})`; ctx.fillRect(x,y,1,1); }
+      ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=0.5; for(let y=0;y<s;y+=12){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(s,y); ctx.stroke(); }
+    },128);
+    return new THREE.MeshStandardMaterial({map, roughness:0.62, metalness:0.18});
+  }
+  static helmetCover(){
+    const map=createCanvasTexture((ctx,s)=>{
+      ctx.fillStyle='#3d3e36'; ctx.fillRect(0,0,s,s);
+      for(let i=0;i<200;i++){ const v=Math.random()*20-10; ctx.fillStyle=`rgba(${61+v},${62+v},${54+v},0.22)`; ctx.fillRect(Math.random()*s,Math.random()*s,Math.random()*4+1,Math.random()*4+1); }
+      // fabric weave
+      ctx.strokeStyle='rgba(0,0,0,0.05)'; for(let y=0;y<s;y+=3){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(s,y); ctx.stroke(); }
+    },256);
+    return new THREE.MeshStandardMaterial({map, roughness:0.92, metalness:0.02});
+  }
+  static helmetShell(){
+    return new THREE.MeshStandardMaterial({color:0x2a2b27, roughness:0.68, metalness:0.22});
+  }
+  static balaclava(){
+    const map=createCanvasTexture((ctx,s)=>{
+      ctx.fillStyle='#08080a'; ctx.fillRect(0,0,s,s);
+      for(let i=0;i<80;i++){ ctx.fillStyle=`rgba(255,255,255,${Math.random()*0.02})`; ctx.fillRect(Math.random()*s,Math.random()*s,1,1); }
+    },64);
+    return new THREE.MeshStandardMaterial({map, roughness:0.94, metalness:0.01});
+  }
+  static bootMaterial(){
+    return new THREE.MeshStandardMaterial({color:0x141416, roughness:0.58, metalness:0.24});
+  }
+  static kneePadMaterial(){
+    return new THREE.MeshStandardMaterial({color:0x232323, roughness:0.71, metalness:0.15});
+  }
+  static buckleMetal(){
+    return new THREE.MeshStandardMaterial({color:0x1e1e1e, roughness:0.38, metalness:0.78});
+  }
+  static skinPlaceholder(){
+    return new THREE.MeshStandardMaterial({color:0x8a6a52, roughness:0.7, metalness:0});
+  }
+}
+
+// --- REFERENCE SOLDIER BUILDER (Matches supplied reference images) ---
+// Visual identity: dark earth tactical uniform #3d3a33, plate carrier #2c2e28 with 3 front mag pouches,
+// high-cut helmet with fabric cover #3d3e36, black balaclava, black gloves, battle belt with holster right,
+// knee pads integrated, tactical boots. Proportions: broad shoulders, helmet slightly larger than head,
+// vest covers chest, pouches placement consistent front/back/left/right.
+class ReferenceSoldierBuilder{
+  static getMaterials(){
+    if(this._mats) return this._mats;
+    this._mats={
+      uniform: MaterialFactory.tacticalFabric('#3d3a33'),
+      uniformDark: MaterialFactory.tacticalFabric('#35332e'),
+      vest: MaterialFactory.vestFabric(),
+      pouch: MaterialFactory.pouchFabric(),
+      glove: MaterialFactory.gloveMaterial(),
+      helmetCover: MaterialFactory.helmetCover(),
+      helmetShell: MaterialFactory.helmetShell(),
+      balaclava: MaterialFactory.balaclava(),
+      boot: MaterialFactory.bootMaterial(),
+      knee: MaterialFactory.kneePadMaterial(),
+      buckle: MaterialFactory.buckleMetal(),
+      metal: new THREE.MeshStandardMaterial({color:0x1a1a1a, roughness:0.35, metalness:0.85}),
+      plastic: new THREE.MeshStandardMaterial({color:0x1a1a1a, roughness:0.78, metalness:0.08})
+    };
+    return this._mats;
+  }
+  // Full body enemy mesh - consistent from all angles
+  static createEnemyMesh(){
+    const mats=this.getMaterials();
+    const group=new THREE.Group();
+
+    // --- LEGS (tactical trousers with knee pads, boots) ---
+    const legGeoUpper=new THREE.CylinderGeometry(0.13,0.12,0.38,8);
+    const legGeoLower=new THREE.CylinderGeometry(0.11,0.10,0.42,8);
+    // Left leg
+    const leftLeg=new THREE.Group(); leftLeg.position.set(-0.13,0.38,0);
+    const lUpper=new THREE.Mesh(legGeoUpper,mats.uniform); lUpper.position.y=0.32; lUpper.castShadow=true; leftLeg.add(lUpper);
+    const lLower=new THREE.Mesh(legGeoLower,mats.uniform); lLower.position.y=-0.08; lLower.castShadow=true; leftLeg.add(lLower);
+    // cargo pocket left
+    const lCargo=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.14,0.06),mats.pouch); lCargo.position.set(-0.08,0.05,0.06); leftLeg.add(lCargo);
+    // knee pad left (integrated, prominent)
+    const lKnee=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.18,0.12),mats.knee); lKnee.position.set(0,0.08,0.08); lKnee.castShadow=true; leftLeg.add(lKnee);
+    const lKneeStrap=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.03,0.13),mats.uniformDark); lKneeStrap.position.set(0,0.16,0.07); leftLeg.add(lKneeStrap);
+    const lBoot=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.14,0.28),mats.boot); lBoot.position.set(0,-0.34,0.05); lBoot.castShadow=true; leftLeg.add(lBoot);
+    const lBootSole=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.04,0.29),mats.buckle); lBootSole.position.set(0,-0.41,0.05); leftLeg.add(lBootSole);
+    group.add(leftLeg);
+
+    // Right leg
+    const rightLeg=new THREE.Group(); rightLeg.position.set(0.13,0.38,0);
+    const rUpper=new THREE.Mesh(legGeoUpper,mats.uniform); rUpper.position.y=0.32; rUpper.castShadow=true; rightLeg.add(rUpper);
+    const rLower=new THREE.Mesh(legGeoLower,mats.uniform); rLower.position.y=-0.08; rLower.castShadow=true; rightLeg.add(rLower);
+    const rCargo=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.14,0.06),mats.pouch); rCargo.position.set(0.08,0.05,0.06); rightLeg.add(rCargo);
+    const rKnee=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.18,0.12),mats.knee); rKnee.position.set(0,0.08,0.08); rKnee.castShadow=true; rightLeg.add(rKnee);
+    const rKneeStrap=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.03,0.13),mats.uniformDark); rKneeStrap.position.set(0,0.16,0.07); rightLeg.add(rKneeStrap);
+    const rBoot=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.14,0.28),mats.boot); rBoot.position.set(0,-0.34,0.05); rBoot.castShadow=true; rightLeg.add(rBoot);
+    const rBootSole=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.04,0.29),mats.buckle); rBootSole.position.set(0,-0.41,0.05); rightLeg.add(rBootSole);
+    group.add(rightLeg);
+
+    // --- BATTLE BELT (consistent placement: holster right, pouches left) ---
+    const beltGroup=new THREE.Group(); beltGroup.position.set(0,0.72,0);
+    const beltRing=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.28,0.08,16),mats.vest); beltRing.position.y=0; beltRing.castShadow=true; beltGroup.add(beltRing);
+    // belt pouches
+    const beltPouchL=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.14,0.09),mats.pouch); beltPouchL.position.set(-0.22,0,0.12); beltGroup.add(beltPouchL);
+    const ifak=new THREE.Mesh(new THREE.BoxGeometry(0.11,0.13,0.08),mats.pouch); ifak.position.set(-0.28,-0.02,-0.05); beltGroup.add(ifak);
+    const magPouchBelt=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.12,0.07),mats.pouch); magPouchBelt.position.set(0.18,0,0.14); beltGroup.add(magPouchBelt);
+    // holster right thigh (consistent - right side only as per reference)
+    const holster=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.22,0.12),mats.plastic); holster.position.set(0.26,-0.22,0.06); holster.rotation.z=-0.15; beltGroup.add(holster);
+    const holsterStrap=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.04,0.14),mats.uniformDark); holsterStrap.position.set(0.26,-0.08,0.06); beltGroup.add(holsterStrap);
+    // pistol grip hint
+    const pistolGrip=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.10,0.04),mats.plastic); pistolGrip.position.set(0.26,-0.12,0.10); beltGroup.add(pistolGrip);
+    // buckle front
+    const beltBuckle=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.06,0.04),mats.buckle); beltBuckle.position.set(0,0,0.28); beltGroup.add(beltBuckle);
+    group.add(beltGroup);
+
+    // --- TORSO & PLATE CARRIER (broad shoulders, chest proportions) ---
+    const torsoGroup=new THREE.Group(); torsoGroup.position.set(0,1.02,0);
+    // base shirt torso (under vest)
+    const shirtTorso=new THREE.Mesh(new THREE.BoxGeometry(0.46,0.58,0.26),mats.uniform); shirtTorso.position.y=0.08; shirtTorso.castShadow=true; torsoGroup.add(shirtTorso);
+    // shoulder width enhancement (combat shirt shoulder)
+    const leftShoulder=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.16,0.18),mats.uniform); leftShoulder.position.set(-0.28,0.28,0); torsoGroup.add(leftShoulder);
+    const rightShoulder=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.16,0.18),mats.uniform); rightShoulder.position.set(0.28,0.28,0); torsoGroup.add(rightShoulder);
+    // shoulder pockets (as per reference)
+    const lShoulderPocket=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.08,0.02),mats.uniformDark); lShoulderPocket.position.set(-0.28,0.28,0.10); torsoGroup.add(lShoulderPocket);
+    const rShoulderPocket=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.08,0.02),mats.uniformDark); rShoulderPocket.position.set(0.28,0.28,0.10); torsoGroup.add(rShoulderPocket);
+    // plate carrier front plate
+    const frontPlate=new THREE.Mesh(new THREE.BoxGeometry(0.38,0.48,0.10),mats.vest); frontPlate.position.set(0,0.10,0.15); frontPlate.castShadow=true; torsoGroup.add(frontPlate);
+    // plate carrier back plate
+    const backPlate=new THREE.Mesh(new THREE.BoxGeometry(0.38,0.48,0.10),mats.vest); backPlate.position.set(0,0.10,-0.15); backPlate.castShadow=true; torsoGroup.add(backPlate);
+    // cummerbund sides
+    const cummerLeft=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.30,0.28),mats.vest); cummerLeft.position.set(-0.22,0.02,0); torsoGroup.add(cummerLeft);
+    const cummerRight=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.30,0.28),mats.vest); cummerRight.position.set(0.22,0.02,0); torsoGroup.add(cummerRight);
+    // FRONT 3 MAG POUCHES (central, as per reference)
+    for(let i=-1;i<=1;i++){
+      const magPouch=new THREE.Mesh(new THREE.BoxGeometry(0.11,0.16,0.07),mats.pouch); magPouch.position.set(i*0.11,0.05,0.21); magPouch.castShadow=true; torsoGroup.add(magPouch);
+      // buckle on pouch
+      const buck=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.02,0.02),mats.buckle); buck.position.set(i*0.11,0.10,0.25); torsoGroup.add(buck);
+      // mag top visible
+      const magTop=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.04,0.02),mats.metal); magTop.position.set(i*0.11,0.14,0.21); torsoGroup.add(magTop);
+    }
+    // side utility pouches (left side)
+    const sidePouchL=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.14,0.12),mats.pouch); sidePouchL.position.set(-0.28,0.02,0.08); torsoGroup.add(sidePouchL);
+    // radio pouch right chest
+    const radioPouch=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.18,0.06),mats.pouch); radioPouch.position.set(0.18,0.12,0.19); torsoGroup.add(radioPouch);
+    const radioAntenna=new THREE.Mesh(new THREE.CylinderGeometry(0.005,0.005,0.18,4),mats.metal); radioAntenna.position.set(0.18,0.28,0.19); torsoGroup.add(radioAntenna);
+    // admin pouch front
+    const adminPouch=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.10,0.04),mats.pouch); adminPouch.position.set(0,0.28,0.20); torsoGroup.add(adminPouch);
+    // back pouches / hydration (as per back view reference - minimal)
+    const backPouch=new THREE.Mesh(new THREE.BoxGeometry(0.20,0.18,0.08),mats.pouch); backPouch.position.set(0,0.12,-0.21); torsoGroup.add(backPouch);
+    const backSmall=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.10,0.06),mats.pouch); backSmall.position.set(0,0.30,-0.20); torsoGroup.add(backSmall);
+    // shoulder straps for vest
+    const strapL=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.04,0.30),mats.vest); strapL.position.set(-0.14,0.38,0); torsoGroup.add(strapL);
+    const strapR=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.04,0.30),mats.vest); strapR.position.set(0.14,0.38,0); torsoGroup.add(strapR);
+    group.add(torsoGroup);
+
+    // --- ARMS (sleeves, elbow pads, gloves) ---
+    // Left arm
+    const leftArm=new THREE.Group(); leftArm.position.set(-0.36,1.28,0);
+    const lUpperArm=new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.07,0.30,8),mats.uniform); lUpperArm.position.set(0,-0.15,0); lUpperArm.rotation.z=0.15; lUpperArm.castShadow=true; leftArm.add(lUpperArm);
+    const lElbowPad=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,8),mats.knee); lElbowPad.position.set(0.02,-0.32,0); leftArm.add(lElbowPad);
+    const lForearm=new THREE.Mesh(new THREE.CylinderGeometry(0.065,0.06,0.28,8),mats.uniform); lForearm.position.set(0.08,-0.48,0.08); lForearm.rotation.x=-0.6; lForearm.rotation.z=-0.2; lForearm.castShadow=true; leftArm.add(lForearm);
+    const lGlove=new THREE.Mesh(new THREE.SphereGeometry(0.08,8,8),mats.glove); lGlove.position.set(0.10,-0.62,0.18); lGlove.scale.set(1,0.9,1.2); leftArm.add(lGlove);
+    // glove details - knuckle
+    const lGloveDetail=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.06,0.08),mats.glove); lGloveDetail.position.set(0.10,-0.60,0.20); leftArm.add(lGloveDetail);
+    group.add(leftArm);
+
+    // Right arm
+    const rightArm=new THREE.Group(); rightArm.position.set(0.36,1.28,0);
+    const rUpperArm=new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.07,0.30,8),mats.uniform); rUpperArm.position.set(0,-0.15,0); rUpperArm.rotation.z=-0.15; rUpperArm.castShadow=true; rightArm.add(rUpperArm);
+    const rElbowPad=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,8),mats.knee); rElbowPad.position.set(-0.02,-0.32,0); rightArm.add(rElbowPad);
+    const rForearm=new THREE.Mesh(new THREE.CylinderGeometry(0.065,0.06,0.28,8),mats.uniform); rForearm.position.set(-0.08,-0.48,0.08); rForearm.rotation.x=-0.6; rForearm.rotation.z=0.2; rForearm.castShadow=true; rightArm.add(rForearm);
+    const rGlove=new THREE.Mesh(new THREE.SphereGeometry(0.08,8,8),mats.glove); rGlove.position.set(-0.10,-0.62,0.18); rGlove.scale.set(1,0.9,1.2); rightArm.add(rGlove);
+    const rGloveDetail=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.06,0.08),mats.glove); rGloveDetail.position.set(-0.10,-0.60,0.20); rightArm.add(rGloveDetail);
+    group.add(rightArm);
+
+    // --- HEAD & HELMET (proportions matched) ---
+    const headGroup=new THREE.Group(); headGroup.position.set(0,1.58,0);
+    // neck / balaclava neck
+    const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.11,0.14,8),mats.balaclava); neck.position.y=-0.10; headGroup.add(neck);
+    // head base (balaclava covered)
+    const headBase=new THREE.Mesh(new THREE.SphereGeometry(0.16,12,10),mats.balaclava); headBase.position.y=0.02; headBase.scale.set(1,1.15,1); headBase.castShadow=true; headGroup.add(headBase);
+    // face lower covering bulge
+    const faceCover=new THREE.Mesh(new THREE.SphereGeometry(0.155,10,8,0,Math.PI*2,0,Math.PI*0.55),mats.balaclava); faceCover.position.set(0,0.02,0.04); faceCover.rotation.x=Math.PI; faceCover.scale.set(1.05,1,1); headGroup.add(faceCover);
+    // eye area - slight dark visor / eye protection
+    const eyeProtection=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.06,0.08),new THREE.MeshStandardMaterial({color:0x0a0a0a, roughness:0.25, metalness:0.6})); eyeProtection.position.set(0,0.08,0.14); headGroup.add(eyeProtection);
+    // helmet shell - high cut shape
+    const helmetGeo=new THREE.SphereGeometry(0.21,14,12,0,Math.PI*2,0,Math.PI*0.62);
+    const helmetShell=new THREE.Mesh(helmetGeo,mats.helmetShell); helmetShell.position.y=0.12; helmetShell.scale.set(1.05,0.85,1.1); helmetShell.castShadow=true; headGroup.add(helmetShell);
+    // helmet cover fabric (slightly larger)
+    const helmetCoverGeo=new THREE.SphereGeometry(0.215,14,12,0,Math.PI*2,0,Math.PI*0.65);
+    const helmetCover=new THREE.Mesh(helmetCoverGeo,mats.helmetCover); helmetCover.position.y=0.122; helmetCover.scale.set(1.07,0.87,1.12); helmetCover.castShadow=true; headGroup.add(helmetCover);
+    // helmet rim / edge
+    const helmetRim=new THREE.Mesh(new THREE.TorusGeometry(0.21,0.015,6,16,Math.PI),mats.helmetCover); helmetRim.position.set(0,0.05,0); helmetRim.rotation.x=Math.PI/2; helmetRim.scale.set(1.05,1.1,1); headGroup.add(helmetRim);
+    // high cut ear area - cutout visual via side indent (represented by side pads)
+    const leftEarPad=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.12,0.14),mats.helmetShell); leftEarPad.position.set(-0.21,0.08,0); headGroup.add(leftEarPad);
+    const rightEarPad=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.12,0.14),mats.helmetShell); rightEarPad.position.set(0.21,0.08,0); headGroup.add(rightEarPad);
+    // NVG mount front
+    const nvgMount=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.08,0.04),mats.buckle); nvgMount.position.set(0,0.18,0.21); headGroup.add(nvgMount);
+    const nvgMountBase=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.04,0.05),mats.buckle); nvgMountBase.position.set(0,0.22,0.20); headGroup.add(nvgMountBase);
+    // side rails
+    const leftRail=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.06,0.16),mats.buckle); leftRail.position.set(-0.22,0.12,0); headGroup.add(leftRail);
+    const rightRail=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.06,0.16),mats.buckle); rightRail.position.set(0.22,0.12,0); headGroup.add(rightRail);
+    // back strap / retention
+    const backStrap=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.04,0.02),mats.uniformDark); backStrap.position.set(0,0.02,-0.20); headGroup.add(backStrap);
+
+    group.add(headGroup);
+
+    // --- RIFLE (matches reference: optic, suppressor, foregrip, flashlight) ---
+    const rifleGroup=new THREE.Group(); rifleGroup.position.set(0,1.02,0.28); rifleGroup.rotation.y=Math.PI; // facing forward
+    // receiver
+    const rec=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.07,0.32),mats.metal); rec.position.set(0,0,0); rifleGroup.add(rec);
+    // handguard
+    const hg=new THREE.Mesh(new THREE.BoxGeometry(0.065,0.065,0.30),mats.plastic); hg.position.set(0,-0.01,-0.28); rifleGroup.add(hg);
+    // barrel
+    const barrelGeo=new THREE.CylinderGeometry(0.014,0.014,0.38,10); barrelGeo.rotateX(Math.PI/2);
+    const barrel=new THREE.Mesh(barrelGeo,mats.metal); barrel.position.set(0,-0.01,-0.55); rifleGroup.add(barrel);
+    // suppressor
+    const suppGeo=new THREE.CylinderGeometry(0.022,0.022,0.18,10); suppGeo.rotateX(Math.PI/2);
+    const supp=new THREE.Mesh(suppGeo,mats.metal); supp.position.set(0,-0.01,-0.82); rifleGroup.add(supp);
+    // stock
+    const stock=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.09,0.24),mats.plastic); stock.position.set(0,0.02,0.24); rifleGroup.add(stock);
+    // magazine
+    const mag=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.16,0.07),mats.plastic); mag.position.set(0,-0.14,0.02); rifleGroup.add(mag);
+    // optic (as per reference image - boxy)
+    const optic=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.05,0.18),mats.metal); optic.position.set(0,0.07,-0.02); rifleGroup.add(optic);
+    const opticLens=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.02,8),new THREE.MeshStandardMaterial({color:0x223344, roughness:0.15, metalness:0.8})); opticLens.rotation.x=Math.PI/2; opticLens.position.set(0,0.07,-0.11); rifleGroup.add(opticLens);
+    // foregrip vertical
+    const vfg=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.12,6),mats.plastic); vfg.position.set(0,-0.10,-0.28); rifleGroup.add(vfg);
+    // flashlight / laser module
+    const tacLight=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.03,0.10),mats.metal); tacLight.position.set(0.04,-0.02,-0.38); rifleGroup.add(tacLight);
+    // grip
+    const grip=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.12,0.06),mats.plastic); grip.position.set(0,-0.10,0.08); grip.rotation.x=0.2; rifleGroup.add(grip);
+
+    // attach rifle to hands (will be repositioned in animation)
+    group.add(rifleGroup);
+    group.userData.rifle=rifleGroup; group.userData.leftArm=leftArm; group.userData.rightArm=rightArm; group.userData.head=headGroup;
+    group.userData.leftLeg=leftLeg; group.userData.rightLeg=rightLeg;
+
+    // overall scale - ensure proportions match reference (broad shoulders)
+    group.scale.set(1,1,1);
+    return group;
+  }
+
+  // First-person arms for bodycam POV - must be same character, same materials, believable
+  static createFirstPersonArms(){
+    const mats=this.getMaterials();
+    const fpGroup=new THREE.Group();
+
+    // chest vest visible when looking down (upper body from bodycam)
+    const chestGroup=new THREE.Group(); chestGroup.position.set(0,-0.42,-0.28);
+    const chestVest=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.40,0.08),mats.vest); chestVest.position.set(0,0,0.04); chestGroup.add(chestVest);
+    // 3 mag pouches front (as seen from bodycam looking down)
+    for(let i=-1;i<=1;i++){
+      const mp=new THREE.Mesh(new THREE.BoxGeometry(0.11,0.14,0.06),mats.pouch); mp.position.set(i*0.11,-0.02,0.09); chestGroup.add(mp);
+      const buck=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.02,0.02),mats.buckle); buck.position.set(i*0.11,0.03,0.12); chestGroup.add(buck);
+    }
+    // admin pouch
+    const admin=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.09,0.04),mats.pouch); admin.position.set(0,0.12,0.08); chestGroup.add(admin);
+    // straps
+    const strapL=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.04,0.18),mats.vest); strapL.position.set(-0.13,0.18,0); chestGroup.add(strapL);
+    const strapR=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.04,0.18),mats.vest); strapR.position.set(0.13,0.18,0); chestGroup.add(strapR);
+    fpGroup.add(chestGroup);
+    fpGroup.userData.chest=chestGroup;
+
+    // Left arm - from shoulder to hand, sleeve #3d3a33, elbow pad, black glove
+    const leftArm=new THREE.Group(); leftArm.position.set(-0.28,-0.22,-0.18);
+    const lUpper=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.075,0.32,8),mats.uniform); lUpper.position.set(0,-0.10,0); lUpper.rotation.z=0.35; lUpper.rotation.x=-0.4; lUpper.castShadow=true; leftArm.add(lUpper);
+    const lElbow=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,8),mats.knee); lElbow.position.set(0.06,-0.28,0.05); leftArm.add(lElbow);
+    const lFore=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.065,0.30,8),mats.uniform); lFore.position.set(0.14,-0.32,0.18); lFore.rotation.x=-0.9; lFore.rotation.z=-0.15; lFore.castShadow=true; leftArm.add(lFore);
+    const lGlove=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.08,0.12),mats.glove); lGlove.position.set(0.18,-0.30,0.34); lGlove.rotation.x=-0.2; lGlove.rotation.y=0.1; leftArm.add(lGlove);
+    const lGloveFingers=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.06,0.10),mats.glove); lGloveFingers.position.set(0.20,-0.30,0.42); leftArm.add(lGloveFingers);
+    fpGroup.add(leftArm);
+
+    // Right arm - holding rifle
+    const rightArm=new THREE.Group(); rightArm.position.set(0.28,-0.24,-0.18);
+    const rUpper=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.075,0.32,8),mats.uniform); rUpper.position.set(0,-0.10,0); rUpper.rotation.z=-0.35; rUpper.rotation.x=-0.45; rUpper.castShadow=true; rightArm.add(rUpper);
+    const rElbow=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,8),mats.knee); rElbow.position.set(-0.06,-0.28,0.05); rightArm.add(rElbow);
+    const rFore=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.065,0.30,8),mats.uniform); rFore.position.set(-0.12,-0.34,0.18); rFore.rotation.x=-1.0; rFore.rotation.z=0.15; rFore.castShadow=true; rightArm.add(rFore);
+    const rGlove=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.08,0.12),mats.glove); rGlove.position.set(-0.16,-0.32,0.34); rGlove.rotation.x=-0.15; rightArm.add(rGlove);
+    const rGloveFingers=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.06,0.10),mats.glove); rGloveFingers.position.set(-0.18,-0.32,0.42); rightArm.add(rGloveFingers);
+    fpGroup.add(rightArm);
+
+    fpGroup.userData.leftArm=leftArm; fpGroup.userData.rightArm=rightArm;
+    return fpGroup;
+  }
 }
 
 // --- AUDIO MANAGER ---
@@ -550,32 +865,84 @@ class Player{
   constructor(){ this.position=new THREE.Vector3(0,0,8); this.velocity=new THREE.Vector3(); this.yaw=0; this.pitch=0; this.isCrouching=false; this.isIndoors=true; this.isDark=false; this.isNight=false; this.flashlightOn=false; this.isReloading=false; this.health=100; this.stamina=100; this.breathing=0.2; }
 }
 
-// --- WEAPON SYSTEM ---
+// --- WEAPON SYSTEM (Reference-accurate rifle + first-person body) ---
 class WeaponSystem{
   constructor(scene,camera,audio){
     this.scene=scene; this.camera=camera; this.audio=audio; this.group=new THREE.Group(); this.camera.add(this.group);
     this.ammo=30; this.reserve=90; this.isReloading=false; this.fireMode='auto'; this.lastShot=0; this.recoil=0; this.flashlightOn=false;
-    this.createRifle(); this.createFlashlight(); this.sway=new THREE.Vector3(); this.aiming=false;
+    this.createRifle(); this.createFirstPersonBody(); this.createFlashlight(); this.sway=new THREE.Vector3(); this.aiming=false;
   }
   createRifle(){
-    const matBody=MaterialFactory.metal(0); matBody.roughness=0.4; matBody.metalness=0.9;
-    const matPoly=new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.8,metalness:0.1});
+    // Rifle matching reference image: M4-style with optic, suppressor, vertical foregrip, tactical light
+    const mats=ReferenceSoldierBuilder.getMaterials();
     const rifle=new THREE.Group();
-    const rec=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.06,0.35),matBody); rec.position.set(0,-0.08,-0.28); rifle.add(rec);
-    const hg=new THREE.Mesh(new THREE.BoxGeometry(0.055,0.055,0.28),matPoly); hg.position.set(0,-0.07,-0.55); rifle.add(hg);
-    const barrelGeo=new THREE.CylinderGeometry(0.012,0.012,0.45,12); barrelGeo.rotateX(Math.PI/2);
-    const barrel=new THREE.Mesh(barrelGeo,matBody); barrel.position.set(0,-0.07,-0.78); rifle.add(barrel);
-    const stock=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.08,0.22),matPoly); stock.position.set(0,-0.06,-0.08); rifle.add(stock);
-    const mag=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.14,0.07),matPoly); mag.position.set(0,-0.18,-0.26); rifle.add(mag); this.magMesh=mag;
-    const sight=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.04,0.06),matBody); sight.position.set(0,0.0,-0.32); rifle.add(sight);
+    // receiver
+    const rec=new THREE.Mesh(new THREE.BoxGeometry(0.052,0.068,0.34),mats.metal); rec.position.set(0,-0.06,-0.26); rec.castShadow=true; rifle.add(rec);
+    // handguard (M-LOK)
+    const hg=new THREE.Mesh(new THREE.BoxGeometry(0.058,0.058,0.30),mats.plastic); hg.position.set(0,-0.055,-0.54); hg.castShadow=true; rifle.add(hg);
+    // barrel
+    const barrelGeo=new THREE.CylinderGeometry(0.013,0.013,0.42,10); barrelGeo.rotateX(Math.PI/2);
+    const barrel=new THREE.Mesh(barrelGeo,mats.metal); barrel.position.set(0,-0.055,-0.76); barrel.castShadow=true; rifle.add(barrel);
+    // suppressor (as per reference first image - long)
+    const suppGeo=new THREE.CylinderGeometry(0.024,0.024,0.20,12); suppGeo.rotateX(Math.PI/2);
+    const supp=new THREE.Mesh(suppGeo,mats.metal); supp.position.set(0,-0.055,-1.04); supp.castShadow=true; rifle.add(supp);
+    // stock (collapsible)
+    const stock=new THREE.Mesh(new THREE.BoxGeometry(0.045,0.09,0.24),mats.plastic); stock.position.set(0,-0.04,-0.06); stock.castShadow=true; rifle.add(stock);
+    const stockTube=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,0.18,8),mats.metal); stockTube.rotation.x=Math.PI/2; stockTube.position.set(0,-0.04,-0.18); rifle.add(stockTube);
+    // magazine (polymer)
+    const mag=new THREE.Mesh(new THREE.BoxGeometry(0.036,0.16,0.072),mats.plastic); mag.position.set(0,-0.17,-0.24); mag.castShadow=true; rifle.add(mag); this.magMesh=mag;
+    // optic - boxy tactical scope as per reference
+    const opticBody=new THREE.Mesh(new THREE.BoxGeometry(0.032,0.052,0.20),mats.metal); opticBody.position.set(0,0.015,-0.28); opticBody.castShadow=true; rifle.add(opticBody);
+    const opticLensF=new THREE.Mesh(new THREE.CylinderGeometry(0.020,0.020,0.015,10),new THREE.MeshStandardMaterial({color:0x1e2e3a, roughness:0.1, metalness:0.9})); opticLensF.rotation.x=Math.PI/2; opticLensF.position.set(0,0.015,-0.38); rifle.add(opticLensF);
+    const opticLensR=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.012,10),new THREE.MeshStandardMaterial({color:0x1e2e3a, roughness:0.1, metalness:0.9})); opticLensR.rotation.x=Math.PI/2; opticLensR.position.set(0,0.015,-0.18); rifle.add(opticLensR);
+    // vertical foregrip (as per reference)
+    const vfg=new THREE.Mesh(new THREE.CylinderGeometry(0.019,0.019,0.13,8),mats.plastic); vfg.position.set(0,-0.12,-0.52); vfg.castShadow=true; rifle.add(vfg);
+    // tactical light / laser module
+    const tacLight=new THREE.Mesh(new THREE.BoxGeometry(0.032,0.032,0.12),mats.metal); tacLight.position.set(0.032,-0.03,-0.60); rifle.add(tacLight);
+    // pistol grip
+    const grip=new THREE.Mesh(new THREE.BoxGeometry(0.042,0.13,0.065),mats.plastic); grip.position.set(0,-0.11,0.06); grip.rotation.x=0.22; grip.castShadow=true; rifle.add(grip);
+    // charging handle
+    const ch=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.02,0.04),mats.metal); ch.position.set(0,0.02,-0.08); rifle.add(ch);
+    // sling mount
+    const sling=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.04,0.02),mats.buckle); sling.position.set(0,-0.02,-0.10); rifle.add(sling);
+
     rifle.position.set(0.22,-0.18,-0.42); rifle.rotation.set(0.05,-0.08,0.02);
     this.rifle=rifle; this.group.add(rifle);
-    this.muzzleLight=new THREE.PointLight(0xffaa55,0,3); this.muzzleLight.position.set(0,-0.07,-1.0); rifle.add(this.muzzleLight);
+    this.muzzleLight=new THREE.PointLight(0xffaa55,0,3); this.muzzleLight.position.set(0,-0.055,-1.14); rifle.add(this.muzzleLight);
+  }
+  createFirstPersonBody(){
+    // First-person arms & chest matching reference soldier - same materials, same proportions
+    // This ensures bodycam POV remains physically believable with same character
+    const fpArms=ReferenceSoldierBuilder.createFirstPersonArms();
+    // Position arms to hold rifle naturally
+    // Attach to rifle group so they move with recoil/sway, but also keep separate chest
+    this.fpGroup=fpArms;
+    // Chest is part of fpGroup but should stay relative to camera, not rifle
+    // So we split: chest attached to camera group, arms attached to rifle group for natural movement
+    const chest=fpArms.userData.chest;
+    if(chest){
+      chest.position.set(0,-0.52,-0.30);
+      this.group.add(chest);
+    }
+    // Arms - parent to rifle for connected movement, but offset
+    const leftArm=fpArms.userData.leftArm; const rightArm=fpArms.userData.rightArm;
+    if(leftArm && rightArm){
+      // Re-parent arms to rifle group so recoil moves hands
+      leftArm.position.set(-0.12,-0.06,-0.18);
+      leftArm.rotation.set(-0.1,0.2,0.3);
+      rightArm.position.set(0.12,-0.08,-0.10);
+      rightArm.rotation.set(-0.15,-0.2,-0.3);
+      this.rifle.add(leftArm);
+      this.rifle.add(rightArm);
+      this.fpLeftArm=leftArm; this.fpRightArm=rightArm;
+    }
+    // Store chest for breathing animation
+    this.fpChest=chest;
   }
   createFlashlight(){
-    this.flashlight=new THREE.SpotLight(0xfff6e0,0,20,Math.PI/6.5,0.35,1.2); this.flashlight.position.set(0.02,-0.07,-0.6);
+    this.flashlight=new THREE.SpotLight(0xfff6e0,0,20,Math.PI/6.5,0.35,1.2); this.flashlight.position.set(0.032,-0.03,-0.60);
     this.flashlight.castShadow=settings.gfxShadows; this.flashlight.shadow.mapSize.set(settings.gfxQuality==='high'?1024:512,settings.gfxQuality==='high'?1024:512);
-    this.rifle.add(this.flashlight); this.rifle.add(this.flashlight.target); this.flashlight.target.position.set(0,-0.07,-3);
+    this.rifle.add(this.flashlight); this.rifle.add(this.flashlight.target); this.flashlight.target.position.set(0,-0.03,-3);
   }
   update(dt,input,player){
     const targetSwayX=-input.lookDelta.x*0.0005+Math.sin(performance.now()*0.001*(player.stamina<30?2:0.6))*0.005;
@@ -587,12 +954,39 @@ class WeaponSystem{
     this.rifle.rotation.x=THREE.MathUtils.lerp(this.rifle.rotation.x,baseRot.x+this.sway.y*0.5+this.recoil*0.15,dt*12);
     this.rifle.rotation.y=THREE.MathUtils.lerp(this.rifle.rotation.y,baseRot.y+this.sway.x*0.8,dt*12);
     this.recoil=THREE.MathUtils.lerp(this.recoil,0,dt*8);
+    // First-person body breathing & movement
+    if(this.fpChest){
+      const breath=Math.sin(performance.now()*0.001* (player.stamina<30?1.8:0.6))*0.008;
+      this.fpChest.position.y=THREE.MathUtils.lerp(this.fpChest.position.y,-0.52+breath,dt*3);
+      this.fpChest.rotation.x=THREE.MathUtils.lerp(this.fpChest.rotation.x,breath*0.5,dt*3);
+    }
+    if(this.fpLeftArm && this.fpRightArm){
+      // subtle arm inertia with look
+      this.fpLeftArm.rotation.x=THREE.MathUtils.lerp(this.fpLeftArm.rotation.x,-0.1+this.sway.y*0.3,dt*8);
+      this.fpRightArm.rotation.x=THREE.MathUtils.lerp(this.fpRightArm.rotation.x,-0.15+this.sway.y*0.3,dt*8);
+      // recoil kick
+      if(this.recoil>0.1){
+        this.fpLeftArm.position.z=THREE.MathUtils.lerp(this.fpLeftArm.position.z,-0.18-this.recoil*0.04,dt*12);
+        this.fpRightArm.position.z=THREE.MathUtils.lerp(this.fpRightArm.position.z,-0.10-this.recoil*0.04,dt*12);
+      }
+    }
     if(this.isReloading){
       const prog=this.reloadProgress;
+      // Enhanced reload with arm movement - matches reference reload
       this.rifle.position.y=THREE.MathUtils.lerp(this.rifle.position.y,-0.05+Math.sin(prog*Math.PI)*0.08,dt*10);
       this.rifle.rotation.x=THREE.MathUtils.lerp(this.rifle.rotation.x,0.4+Math.sin(prog*Math.PI)*0.2,dt*8);
+      if(this.fpLeftArm){
+        if(prog>0.15&&prog<0.5){
+          this.fpLeftArm.position.y=THREE.MathUtils.lerp(this.fpLeftArm.position.y,-0.15,dt*10);
+          this.fpLeftArm.position.z=THREE.MathUtils.lerp(this.fpLeftArm.position.z,0.05,dt*10);
+          this.fpLeftArm.rotation.x=THREE.MathUtils.lerp(this.fpLeftArm.rotation.x,-0.8,dt*10);
+        }else if(prog>0.5){
+          this.fpLeftArm.position.y=THREE.MathUtils.lerp(this.fpLeftArm.position.y,-0.06,dt*12);
+          this.fpLeftArm.position.z=THREE.MathUtils.lerp(this.fpLeftArm.position.z,-0.18,dt*12);
+        }
+      }
       if(prog>0.2&&prog<0.45) this.magMesh.position.y=THREE.MathUtils.lerp(this.magMesh.position.y,-0.35,dt*12);
-      else if(prog>0.5) this.magMesh.position.y=THREE.MathUtils.lerp(this.magMesh.position.y,-0.18,dt*12);
+      else if(prog>0.5) this.magMesh.position.y=THREE.MathUtils.lerp(this.magMesh.position.y,-0.17,dt*12);
     }
     this.flashlight.intensity=this.flashlightOn?(player.isDark?3.0:1.8):0;
     this.muzzleLight.intensity=THREE.MathUtils.lerp(this.muzzleLight.intensity,0,dt*20);
@@ -737,18 +1131,12 @@ class Enemy{
     this.createMesh(); this.createPatrol();
   }
   createMesh(){
-    const group=new THREE.Group();
-    const bodyMat=new THREE.MeshStandardMaterial({color:0x2a2a32,roughness:0.85}); const skinMat=new THREE.MeshStandardMaterial({color:0xc8a882,roughness:0.7}); const vestMat=new THREE.MeshStandardMaterial({color:0x3a4a3a,roughness:0.8});
-    const torso=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.55,0.22),vestMat); torso.position.y=1.05; torso.castShadow=settings.gfxShadows; group.add(torso);
-    const head=new THREE.Mesh(new THREE.SphereGeometry(0.16,10,10),skinMat); head.position.y=1.52; head.castShadow=settings.gfxShadows; group.add(head);
-    const legGeo=new THREE.CylinderGeometry(0.09,0.09,0.65,6);
-    const leftLeg=new THREE.Mesh(legGeo,bodyMat); leftLeg.position.set(-0.11,0.38,0); leftLeg.castShadow=settings.gfxShadows; group.add(leftLeg);
-    const rightLeg=new THREE.Mesh(legGeo,bodyMat); rightLeg.position.set(0.11,0.38,0); rightLeg.castShadow=settings.gfxShadows; group.add(rightLeg);
-    const armGeo=new THREE.CylinderGeometry(0.06,0.06,0.45,6);
-    const leftArm=new THREE.Mesh(armGeo,bodyMat); leftArm.position.set(-0.28,1.0,0.05); leftArm.rotation.z=-0.3; leftArm.rotation.x=0.6; group.add(leftArm);
-    const rightArm=new THREE.Mesh(armGeo,bodyMat); rightArm.position.set(0.28,1.0,0.05); rightArm.rotation.z=0.3; rightArm.rotation.x=0.6; group.add(rightArm);
-    const wep=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.04,0.6), new THREE.MeshStandardMaterial({color:0x1a1a1a})); wep.position.set(0,1.0,0.35); group.add(wep);
+    // Use reference-accurate soldier mesh matching supplied reference images
+    const group=ReferenceSoldierBuilder.createEnemyMesh();
+    // Apply shadow settings based on quality
+    group.traverse(o=>{ if(o.isMesh){ o.castShadow=settings.gfxShadows; o.receiveShadow=false; } });
     group.position.copy(this.position); group.rotation.y=this.yaw; this.mesh=group; this.scene.add(group);
+    this.animPhase=Math.random()*Math.PI*2;
   }
   createPatrol(){ for(let i=0;i<3;i++) this.patrolPoints.push(new THREE.Vector3(this.position.x+(Math.random()-0.5)*5,0,this.position.z+(Math.random()-0.5)*5)); }
   update(dt,player,world){
@@ -764,6 +1152,55 @@ class Enemy{
       case 'retreat': this.speed=1.2; const away=new THREE.Vector3().subVectors(this.position,player.position).normalize().multiplyScalar(2.5); this.targetPos.copy(this.position).add(away); this.moveTo(this.targetPos,dt,world); if(this.stateTime>3.5) this.setState('engage'); break;
     }
     this.mesh.position.copy(this.position); this.mesh.position.y=0; this.mesh.rotation.y=THREE.MathUtils.lerp(this.mesh.rotation.y,this.yaw,dt*5);
+    // --- Reference character animation (walking, running, turning, aiming) ---
+    const isMoving=this.velocity.length()>0.05;
+    if(isMoving) this.animPhase+=dt* (this.state==='engage'?7.5: this.speed>1.0?6.5:4.2);
+    else this.animPhase+=dt*0.8;
+    const swing=Math.sin(this.animPhase)*0.35;
+    const altSwing=Math.sin(this.animPhase+Math.PI)*0.35;
+    // leg swing
+    if(this.mesh.userData.leftLeg){
+      this.mesh.userData.leftLeg.rotation.x=isMoving?swing*0.6:0;
+      this.mesh.userData.rightLeg.rotation.x=isMoving?altSwing*0.6:0;
+      // slight knee flex
+      this.mesh.userData.leftLeg.position.y=0.38 + (isMoving?Math.abs(Math.sin(this.animPhase))*0.04:0);
+      this.mesh.userData.rightLeg.position.y=0.38 + (isMoving?Math.abs(Math.sin(this.animPhase+Math.PI))*0.04:0);
+    }
+    // arm swing / weapon hold
+    if(this.mesh.userData.leftArm && this.mesh.userData.rightArm){
+      if(this.state==='engage' && this.canSeePlayer){
+        // aiming pose - arms forward holding rifle
+        this.mesh.userData.leftArm.rotation.x=THREE.MathUtils.lerp(this.mesh.userData.leftArm.rotation.x,-0.9,dt*6);
+        this.mesh.userData.rightArm.rotation.x=THREE.MathUtils.lerp(this.mesh.userData.rightArm.rotation.x,-0.9,dt*6);
+        this.mesh.userData.leftArm.rotation.z=THREE.MathUtils.lerp(this.mesh.userData.leftArm.rotation.z,-0.25,dt*6);
+        this.mesh.userData.rightArm.rotation.z=THREE.MathUtils.lerp(this.mesh.userData.rightArm.rotation.z,0.25,dt*6);
+      }else{
+        // patrol / idle swing
+        this.mesh.userData.leftArm.rotation.x=isMoving?altSwing*0.5+0.15:0.15;
+        this.mesh.userData.rightArm.rotation.x=isMoving?swing*0.5+0.15:0.15;
+      }
+    }
+    // head look
+    if(this.mesh.userData.head){
+      if(this.canSeePlayer && this.lastKnownPos){
+        const toPlayer=new THREE.Vector3().subVectors(this.lastKnownPos,this.position); const targetYaw=Math.atan2(toPlayer.x,toPlayer.z);
+        const yawDiff=THREE.MathUtils.euclideanModulo(targetYaw-this.yaw+Math.PI,Math.PI*2)-Math.PI;
+        this.mesh.userData.head.rotation.y=THREE.MathUtils.lerp(this.mesh.userData.head.rotation.y,yawDiff*0.6,dt*4);
+      }else{
+        this.mesh.userData.head.rotation.y=THREE.MathUtils.lerp(this.mesh.userData.head.rotation.y,0,dt*2);
+      }
+      // subtle breathing
+      this.mesh.userData.head.position.y=1.58 + Math.sin(this.animPhase*0.3)*0.012;
+    }
+    // rifle follows aim
+    if(this.mesh.userData.rifle){
+      if(this.state==='engage' && this.canSeePlayer){
+        this.mesh.userData.rifle.rotation.x=THREE.MathUtils.lerp(this.mesh.userData.rifle.rotation.x,0,dt*5);
+        this.mesh.userData.rifle.rotation.y=THREE.MathUtils.lerp(this.mesh.userData.rifle.rotation.y,0,dt*5);
+      }else{
+        this.mesh.userData.rifle.rotation.x=THREE.MathUtils.lerp(this.mesh.userData.rifle.rotation.x,0.15,dt*3);
+      }
+    }
   }
   perceive(player,world){
     const toPlayer=new THREE.Vector3().subVectors(player.position,this.position); const dist=toPlayer.length(); this.canSeePlayer=false;
