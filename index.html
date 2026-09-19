@@ -272,7 +272,35 @@ const isTouch = 'ontouchstart' in window;
 // --- LOADING ---
 const loaderFill=document.getElementById('loader-fill');
 const loadingText=document.getElementById('loading-text');
-function setLoad(p,t){ loaderFill.style.width=p+'%'; if(t) loadingText.textContent=t; }
+function setLoad(p,t){ try{ if(loaderFill) loaderFill.style.width=p+'%'; if(t&&loadingText) loadingText.textContent=t; }catch(e){} }
+// Global error handler to prevent stuck at initializing
+window.addEventListener('error', (e)=>{
+  console.error('Game init error', e.message, e.error);
+  try{
+    if(loadingText) loadingText.textContent='Error: '+e.message+' - retrying...';
+    setTimeout(()=>{
+      const ld=document.getElementById('loading');
+      if(ld) ld.classList.add('hidden');
+      if(typeof checkOrientation==='function') checkOrientation();
+      if(typeof animate==='function') try{ animate(); }catch(e2){}
+    }, 800);
+  }catch(e2){}
+});
+window.addEventListener('unhandledrejection', (e)=>{
+  console.error('Unhandled rejection', e.reason);
+});
+
+// Fallback: force hide loading after 3s even if init fails, so player can see start screen
+setTimeout(()=>{
+  try{
+    const ld=document.getElementById('loading');
+    if(ld && !ld.classList.contains('hidden')){
+      console.warn('Force hiding loading after fallback timeout');
+      ld.classList.add('hidden');
+      if(typeof checkOrientation==='function') checkOrientation();
+    }
+  }catch(e){}
+}, 3000);
 
 // --- GAME STATE (must be before orientation check) ---
 let worldData=null;
@@ -1027,19 +1055,20 @@ class HumanoidCharacterBuilder{
     const chest=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.40,0.08),mats.vest); chest.position.set(0,-0.52,-0.30); group.add(chest);
     for(let i=-1;i<=1;i++){ const mp=new THREE.Mesh(new THREE.BoxGeometry(0.11,0.14,0.06),mats.pouch); mp.position.set(i*0.11,-0.54, -0.22); group.add(mp); }
 
-    // left arm - genuine humanoid with capsule, sphere joints, fingers
+    // left arm - genuine humanoid with capsule, sphere joints, fingers - safe capsule with fallback
+    const safeCap=(r,l,seg=8)=>{ try{ return new THREE.CapsuleGeometry(r,l,4,seg); }catch(e){ return new THREE.CylinderGeometry(r,r,l,seg); } };
     const leftArm=new THREE.Group(); leftArm.position.set(-0.28,-0.22,-0.18);
-    const lUpper=new THREE.Mesh(new THREE.CapsuleGeometry(0.075,0.26,4,10),mats.uniform); lUpper.position.set(0,-0.12,0); lUpper.rotation.z=0.35; lUpper.rotation.x=-0.4; leftArm.add(lUpper);
+    const lUpper=new THREE.Mesh(safeCap(0.075,0.26,10),mats.uniform); lUpper.position.set(0,-0.12,0); lUpper.rotation.z=0.35; lUpper.rotation.x=-0.4; leftArm.add(lUpper);
     const lElbow=new THREE.Mesh(new THREE.SphereGeometry(0.07,10,8),mats.knee); lElbow.position.set(0.05,-0.26,0.03); leftArm.add(lElbow);
-    const lFore=new THREE.Mesh(new THREE.CapsuleGeometry(0.06,0.24,4,10),skinHairMat); lFore.position.set(0.12,-0.30,0.16); lFore.rotation.x=-0.9; lFore.rotation.z=-0.12; leftArm.add(lFore);
+    const lFore=new THREE.Mesh(safeCap(0.06,0.24,10),skinHairMat); lFore.position.set(0.12,-0.30,0.16); lFore.rotation.x=-0.9; lFore.rotation.z=-0.12; leftArm.add(lFore);
     const watchBand=new THREE.Mesh(new THREE.CylinderGeometry(0.064,0.064,0.04,12),new THREE.MeshStandardMaterial({color:0x0a0a0a, roughness:0.5})); watchBand.position.set(0.12,-0.24,0.14); watchBand.rotation.x=-0.9; watchBand.rotation.z=-0.12; leftArm.add(watchBand);
     const watchFace=new THREE.Mesh(new THREE.CylinderGeometry(0.032,0.032,0.045,10),new THREE.MeshStandardMaterial({color:0x111111, roughness:0.3, metalness:0.5})); watchFace.position.set(0.12,-0.24,0.17); watchFace.rotation.x=-0.9; leftArm.add(watchFace);
     // hand with fingers - human hand
     const lPalm=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.10,0.04),mats.glove); lPalm.position.set(0.16,-0.34,0.32); leftArm.add(lPalm);
     for(let i=0;i<5;i++){
       const fg=new THREE.Group(); fg.position.set(0.16+(i-2)*0.018, -0.40, 0.34); fg.rotation.z=(i-2)*0.12;
-      const f1=new THREE.Mesh(new THREE.CapsuleGeometry(0.011,0.05,3,6),mats.glove); f1.position.set(0,-0.03,0); fg.add(f1);
-      const f2=new THREE.Mesh(new THREE.CapsuleGeometry(0.009,0.035,3,6),mats.glove); f2.position.set(0,-0.08,0); fg.add(f2);
+      const f1=new THREE.Mesh(safeCap(0.011,0.05,6),mats.glove); f1.position.set(0,-0.03,0); fg.add(f1);
+      const f2=new THREE.Mesh(safeCap(0.009,0.035,6),mats.glove); f2.position.set(0,-0.08,0); fg.add(f2);
       leftArm.add(fg);
     }
     // sling over arm
@@ -1048,14 +1077,14 @@ class HumanoidCharacterBuilder{
 
     // right arm
     const rightArm=new THREE.Group(); rightArm.position.set(0.28,-0.24,-0.18);
-    const rUpper=new THREE.Mesh(new THREE.CapsuleGeometry(0.075,0.26,4,10),mats.uniform); rUpper.position.set(0,-0.12,0); rUpper.rotation.z=-0.35; rUpper.rotation.x=-0.45; rightArm.add(rUpper);
+    const rUpper=new THREE.Mesh(safeCap(0.075,0.26,10),mats.uniform); rUpper.position.set(0,-0.12,0); rUpper.rotation.z=-0.35; rUpper.rotation.x=-0.45; rightArm.add(rUpper);
     const rElbow=new THREE.Mesh(new THREE.SphereGeometry(0.07,10,8),mats.knee); rElbow.position.set(-0.05,-0.26,0.03); rightArm.add(rElbow);
-    const rFore=new THREE.Mesh(new THREE.CapsuleGeometry(0.06,0.24,4,10),skinMat); rFore.position.set(-0.10,-0.32,0.16); rFore.rotation.x=-1.0; rightArm.add(rFore);
+    const rFore=new THREE.Mesh(safeCap(0.06,0.24,10),skinMat); rFore.position.set(-0.10,-0.32,0.16); rFore.rotation.x=-1.0; rightArm.add(rFore);
     const rPalm=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.10,0.04),mats.glove); rPalm.position.set(-0.14,-0.36,0.32); rightArm.add(rPalm);
     for(let i=0;i<5;i++){
       const fg=new THREE.Group(); fg.position.set(-0.14+(i-2)*0.018, -0.42, 0.34); fg.rotation.z=(i-2)*0.12;
-      const f1=new THREE.Mesh(new THREE.CapsuleGeometry(0.011,0.05,3,6),mats.glove); f1.position.set(0,-0.03,0); fg.add(f1);
-      const f2=new THREE.Mesh(new THREE.CapsuleGeometry(0.009,0.035,3,6),mats.glove); f2.position.set(0,-0.08,0); fg.add(f2);
+      const f1=new THREE.Mesh(safeCap(0.011,0.05,6),mats.glove); f1.position.set(0,-0.03,0); fg.add(f1);
+      const f2=new THREE.Mesh(safeCap(0.009,0.035,6),mats.glove); f2.position.set(0,-0.08,0); fg.add(f2);
       rightArm.add(fg);
     }
     group.add(rightArm);
@@ -1659,37 +1688,82 @@ class EnemyManager{
 
 // --- CORE SETUP ---
 setLoad(12,'Core...');
-const container=document.getElementById('canvas-container');
-const scene=new THREE.Scene(); scene.background=new THREE.Color(0x0a0a0f); scene.fog=new THREE.FogExp2(0x0a0a0f,0.02);
-const camera=new THREE.PerspectiveCamera(78, window.innerWidth/window.innerHeight, 0.1,100);
-const renderer=new THREE.WebGLRenderer({antialias: settings.gfxQuality!=='low', powerPreference:'high-performance'});
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, settings.gfxQuality==='high'?1.6:1.2));
-renderer.shadowMap.enabled=settings.gfxShadows; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.0; renderer.outputColorSpace=THREE.SRGBColorSpace;
-container.appendChild(renderer.domElement);
+let container, scene, camera, renderer, scopeRenderer, scopeCamera, composer, bloomPass, bodyCamPass;
+try{
+  container=document.getElementById('canvas-container');
+  scene=new THREE.Scene(); scene.background=new THREE.Color(0x0a0a0f); scene.fog=new THREE.FogExp2(0x0a0a0f,0.02);
+  camera=new THREE.PerspectiveCamera(78, window.innerWidth/window.innerHeight, 0.1,100);
+  renderer=new THREE.WebGLRenderer({antialias: settings.gfxQuality!=='low', powerPreference:'high-performance'});
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, settings.gfxQuality==='high'?1.6:1.2));
+  renderer.shadowMap.enabled=settings.gfxShadows; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.0; renderer.outputColorSpace=THREE.SRGBColorSpace;
+  container.appendChild(renderer.domElement);
 
-// Scope renderer (second, small, for realistic optic magnification)
-const scopeCanvas=document.getElementById('scope-canvas');
-const scopeRenderer=new THREE.WebGLRenderer({canvas:scopeCanvas, alpha:true, antialias:true});
-scopeRenderer.setSize(360,360); scopeRenderer.setPixelRatio(1);
-const scopeCamera=new THREE.PerspectiveCamera(18,1,0.1,100); // narrow FOV = magnified
+  // Scope renderer (second, small, for realistic optic magnification) - with fallback
+  try{
+    const scopeCanvas=document.getElementById('scope-canvas');
+    scopeRenderer=new THREE.WebGLRenderer({canvas:scopeCanvas, alpha:true, antialias:true});
+    scopeRenderer.setSize(360,360); scopeRenderer.setPixelRatio(1);
+    scopeCamera=new THREE.PerspectiveCamera(18,1,0.1,100);
+  }catch(e){ console.warn('Scope renderer failed', e); scopeRenderer={render:()=>{}, setSize:()=>{}}; scopeCamera=new THREE.PerspectiveCamera(18,1,0.1,100); }
 
-const composer=new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene,camera));
-const bloomPass=new UnrealBloomPass(new THREE.Vector2(window.innerWidth,window.innerHeight), settings.gfxQuality==='low'?0.08:0.16, 0.35,0.85);
-composer.addPass(bloomPass);
-const bodyCamPass=new ShaderPass(BodyCamShader);
-bodyCamPass.enabled = settings.gfxBodycam;
-composer.addPass(bodyCamPass);
+  // Composer with fallback to plain renderer if postprocessing fails
+  try{
+    composer=new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene,camera));
+    bloomPass=new UnrealBloomPass(new THREE.Vector2(window.innerWidth,window.innerHeight), settings.gfxQuality==='low'?0.08:0.16, 0.35,0.85);
+    composer.addPass(bloomPass);
+    bodyCamPass=new ShaderPass(BodyCamShader);
+    bodyCamPass.enabled = settings.gfxBodycam;
+    composer.addPass(bodyCamPass);
+  }catch(e){
+    console.warn('Composer failed, fallback to plain renderer', e);
+    composer={render:()=>{ renderer.render(scene,camera); }, setSize:()=>{}};
+    bloomPass={}; bodyCamPass={uniforms:{time:{value:0},exposure:{value:1},motion:{value:0},flash:{value:0},distortion:{value:0},chromatic:{value:0},grain:{value:0},ads:{value:0}}, enabled:true};
+  }
+}catch(e){
+  console.error('Core setup failed', e);
+  // Minimal fallback to allow game to load
+  try{
+    container=document.getElementById('canvas-container');
+    scene=new THREE.Scene(); scene.background=new THREE.Color(0x0a0a0f);
+    camera=new THREE.PerspectiveCamera(78, window.innerWidth/window.innerHeight, 0.1,100);
+    renderer=new THREE.WebGLRenderer({antialias:false});
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    container.appendChild(renderer.domElement);
+    scopeRenderer={render:()=>{}, setSize:()=>{}}; scopeCamera=new THREE.PerspectiveCamera(18,1,0.1,100);
+    composer={render:()=>{ renderer.render(scene,camera); }, setSize:()=>{}};
+    bloomPass={}; bodyCamPass={uniforms:{time:{value:0},exposure:{value:1},motion:{value:0},flash:{value:0},distortion:{value:0},chromatic:{value:0},grain:{value:0},ads:{value:0}}, enabled:false};
+  }catch(e2){ console.error('Minimal fallback failed', e2); }
+}
 
 setLoad(28,'Audio & Systems...');
-const audioManager=new AudioManager();
-const player=new Player();
-const bodyCamera=new BodyCamera(camera);
-const weapon=new WeaponSystem(scene,camera,audioManager);
-const buildingGen=new BuildingGenerator(scene);
-const enemyManager=new EnemyManager(scene);
+let audioManager, player, bodyCamera, weapon, buildingGen, enemyManager;
+try{
+  audioManager=new AudioManager();
+  player=new Player();
+  bodyCamera=new BodyCamera(camera);
+  weapon=new WeaponSystem(scene,camera,audioManager);
+  buildingGen=new BuildingGenerator(scene);
+  enemyManager=new EnemyManager(scene);
+}catch(e){
+  console.error('Systems init failed', e);
+  // Fallback minimal systems to allow loading
+  try{
+    if(!audioManager) audioManager=new AudioManager();
+  }catch(e2){}
+  if(!player) player=new Player();
+  if(!bodyCamera) bodyCamera=new BodyCamera(camera);
+  if(!buildingGen) buildingGen=new BuildingGenerator(scene);
+  if(!enemyManager) enemyManager=new EnemyManager(scene);
+  if(!weapon){
+    try{ weapon=new WeaponSystem(scene,camera,audioManager); }catch(e3){ 
+      console.warn('Weapon fallback failed', e3);
+      weapon={ammo:30,reserve:90,aiming:false,flashlightOn:false,flashlight:{intensity:0},muzzleLight:{intensity:0},rifle:{position:new THREE.Vector3(),rotation:new THREE.Vector3()},update:()=>{},updateReload:()=>{},tryFire:()=>false,startReload:()=>false};
+    }
+  }
+}
 // worldData, gameState, objectivePackage already defined at top for orientation gate
 
 // --- INPUT ABSTRACTION (MOBILE-FIRST) ---
@@ -1919,6 +1993,7 @@ function checkCollisions(newPos){
 
 // --- LOAD LEVEL (SPAWN OUTSIDE) ---
 function loadLevel(index){
+  try{
   const def=LEVEL_DEFS[index];
   worldData=buildingGen.generate(def, true);
   // spawn outside building: at gap entrance outside perimeter
@@ -1945,6 +2020,14 @@ function loadLevel(index){
   scene.background=new THREE.Color(def.isNight?0x06080f:0xc8d0d8);
   document.getElementById('debug-sector').textContent=`${def.opName} • ${def.codename}`;
   saveProgression();
+  }catch(e){
+    console.error('loadLevel failed', e);
+    // Fallback minimal world to allow game to continue
+    try{
+      if(!worldData) worldData={rooms:[{x:-4,z:-4,w:8,h:8}], colliders:[{type:'floor'}], group:new THREE.Group()};
+      player.position.set(0,0,8); player.yaw=0; player.health=100;
+    }catch(e2){}
+  }
 }
 
 setLoad(45,'World...');
@@ -2118,6 +2201,7 @@ setLoad(70,'Spawning...');
 let lastTime=performance.now();
 function animate(){
   requestAnimationFrame(animate);
+  try{
   const now=performance.now(); const dt=Math.min((now-lastTime)/1000,0.05); lastTime=now;
   if(gameState==='playing'){
     const moveSpeed = input.sprint?4.0:2.0;
@@ -2193,11 +2277,16 @@ function animate(){
       // slight offset to match weapon optic position
       scopeRenderer.render(scene, scopeCamera);
     }
-    composer.render();
+    try{ composer.render(); }catch(e){ try{ renderer.render(scene,camera); }catch(e2){} }
   } else {
-    composer.render();
+    try{ composer.render(); }catch(e){ try{ renderer.render(scene,camera); }catch(e2){} }
   }
-  input.lookDelta.set(0,0);
+  try{ input.lookDelta.set(0,0); }catch(e){}
+  }catch(e){
+    console.error('Animate error', e);
+    try{ renderer.render(scene,camera); }catch(e2){}
+    try{ input.lookDelta.set(0,0); }catch(e2){}
+  }
 }
 
 function createImpact(point,normal,isFlesh){
