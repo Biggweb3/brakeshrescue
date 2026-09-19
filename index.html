@@ -1015,9 +1015,11 @@ function loadLevel(index){
   const def=LEVEL_DEFS[index];
   worldData=buildingGen.generate(def, true);
   // spawn outside building: at gap entrance outside perimeter
+  // FIX: spawn facing building center (-Z direction). Yaw 0 looks -Z (toward building), matching camera forward -sin,-cos.
+  // Previously yaw PI with inverted forward caused camera to look away while movement went toward building — that was part of inversion bug.
   const spawnOutside = new THREE.Vector3(0,0, def.size*0.5 + 4.5);
   player.position.copy(spawnOutside);
-  player.yaw=Math.PI; player.pitch=0; player.health=100; player.isIndoors=false; player.isDark=def.isDark; player.isNight=def.isNight;
+  player.yaw=0; player.pitch=0; player.health=100; player.isIndoors=false; player.isDark=def.isDark; player.isNight=def.isNight;
   player.flashlightOn=def.isDark; weapon.flashlightOn=player.flashlightOn; weapon.ammo=30; weapon.reserve=90;
   enemyManager.spawn(def.enemies, worldData.rooms);
   if(objectivePackage) { scene.remove(objectivePackage); objectivePackage=null; }
