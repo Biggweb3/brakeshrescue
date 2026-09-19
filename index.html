@@ -30,11 +30,18 @@
   .btn-primary:active{transform:scale(0.98);background:white}
   /* HUD */
   #hud{position:fixed;inset:0;z-index:10;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
-  #top-bar{position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:linear-gradient(to bottom, rgba(0,0,0,0.75), transparent);border-bottom:1px solid rgba(255,255,255,0.05)}
-  #rec-indicator{display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono';font-size:10px;letter-spacing:0.12em}
+  #top-bar{position:absolute;top:0;left:0;right:0;height:64px;display:flex;align-items:flex-start;justify-content:space-between;padding:8px 14px 0;background:linear-gradient(to bottom, rgba(0,0,0,0.78), transparent);border-bottom:1px solid rgba(255,255,255,0.05)}
+  #rec-indicator{display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono';font-size:10px;letter-spacing:0.12em;margin-top:4px}
   .rec-dot{width:8px;height:8px;background:#ff2a2a;border-radius:50%;box-shadow:0 0 6px #ff2a2a;animation:blink 1.2s infinite}
   @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
-  #op-info{font-family:'JetBrains Mono';font-size:10px;opacity:0.6;letter-spacing:0.08em;text-align:right}
+  #op-info{font-family:'JetBrains Mono';font-size:10px;opacity:0.6;letter-spacing:0.08em;text-align:right;margin-top:4px}
+  /* Police bodycam badge - matches reference top-left */
+  #police-badge{width:54px;height:64px;background:linear-gradient(180deg,#1e3a6e 0%,#0f1f3f 100%);border:2px solid #c9a227;border-radius:6px 6px 22px 22px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.7), inset 0 1px 2px rgba(255,255,255,0.2);position:relative;flex-shrink:0}
+  #police-badge::before{content:'POLICE';font-family:'JetBrains Mono';font-weight:800;font-size:9px;letter-spacing:0.08em;color:#e8c85a;text-shadow:0 1px 1px rgba(0,0,0,0.8);margin-bottom:2px}
+  #police-badge::after{content:'●';font-size:14px;color:#c9a227;margin-top:-2px}
+  #police-badge-inner{position:absolute;inset:3px;border:1px solid rgba(201,162,39,0.35);border-radius:4px 4px 18px 18px;pointer-events:none}
+  /* Bodycam timestamp - matches reference top-right 10:45:22 2024-05-15 */
+  #bodycam-timestamp{font-family:'JetBrains Mono';font-size:13px;font-weight:500;letter-spacing:0.04em;color:rgba(255,255,255,0.92);text-shadow:0 1px 3px rgba(0,0,0,0.9),0 0 6px rgba(0,0,0,0.6);background:rgba(0,0,0,0.25);padding:2px 6px;border-radius:2px;backdrop-filter:blur(2px)}
   #bottom-bar{position:absolute;bottom:0;left:0;right:0;padding:14px 18px 18px;display:flex;justify-content:space-between;align-items:flex-end;background:linear-gradient(to top, rgba(0,0,0,0.75), transparent);pointer-events:none}
   #weapon-info{pointer-events:none}
   #ammo-count{font-family:'JetBrains Mono';font-size:22px;font-weight:700}
@@ -148,8 +155,17 @@
 
 <div id="hud">
   <div id="top-bar">
-    <div id="rec-indicator"><div class="rec-dot"></div>REC • BODYCAM 07</div>
-    <div id="op-info">OPERATION • SECTOR</div>
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <div id="police-badge"><div id="police-badge-inner"></div></div>
+      <div style="display:flex;flex-direction:column;gap:3px;margin-top:2px">
+        <div id="rec-indicator"><div class="rec-dot"></div>REC • BODYCAM 07</div>
+        <div id="op-info">OPERATION • SECTOR</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+      <div id="bodycam-timestamp">10:45:22 2024-05-15</div>
+      <div id="op-info-right" style="font-family:'JetBrains Mono';font-size:8px;opacity:0.45;letter-spacing:0.08em">AXON BODY 4</div>
+    </div>
   </div>
   <div id="interaction">TAP TO INTERACT</div>
   <div id="damage-vignette"></div>
@@ -282,6 +298,23 @@ function checkOrientation(){
 window.addEventListener('resize', checkOrientation);
 window.addEventListener('orientationchange', ()=>setTimeout(checkOrientation, 300));
 checkOrientation();
+
+// --- BODYCAM TIMESTAMP (matches reference POV: 10:45:22 2024-05-15) ---
+function updateBodycamTimestamp(){
+  try{
+    const now=new Date();
+    const hh=String(now.getHours()).padStart(2,'0');
+    const mm=String(now.getMinutes()).padStart(2,'0');
+    const ss=String(now.getSeconds()).padStart(2,'0');
+    const yyyy=now.getFullYear();
+    const mo=String(now.getMonth()+1).padStart(2,'0');
+    const dd=String(now.getDate()).padStart(2,'0');
+    const el=document.getElementById('bodycam-timestamp');
+    if(el) el.textContent=`${hh}:${mm}:${ss} ${yyyy}-${mo}-${dd}`;
+  }catch(e){}
+}
+setInterval(updateBodycamTimestamp,1000);
+updateBodycamTimestamp();
 
 // --- PROGRESSION SYSTEM (HIDDEN) ---
 // Backend still uses Level_01..20 internally, but player never sees numbers
@@ -737,43 +770,61 @@ class ReferenceSoldierBuilder{
     return group;
   }
 
-  // First-person arms for bodycam POV - must be same character, same materials, believable
+  // First-person arms for bodycam POV - matches reference POV image: AR in hand, black glove, forearm skin with watch, sling
   static createFirstPersonArms(){
     const mats=this.getMaterials();
     const fpGroup=new THREE.Group();
 
+    // skin material for forearm (as per reference: light skin, arm hair)
+    const skinMat=new THREE.MeshStandardMaterial({color:0xd8b8a0, roughness:0.65, metalness:0.02});
+    const skinMatWithHair=(()=>{
+      const map=createCanvasTexture((ctx,s)=>{
+        ctx.fillStyle='#d8b8a0'; ctx.fillRect(0,0,s,s);
+        // subtle hair
+        ctx.strokeStyle='rgba(80,50,30,0.18)'; ctx.lineWidth=0.4;
+        for(let i=0;i<120;i++){ const x=Math.random()*s,y=Math.random()*s; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+Math.random()*3-1.5,y+Math.random()*6); ctx.stroke(); }
+        for(let i=0;i<40;i++){ ctx.fillStyle=`rgba(0,0,0,${Math.random()*0.04})`; ctx.fillRect(Math.random()*s,Math.random()*s,1,1); }
+      },128);
+      return new THREE.MeshStandardMaterial({map, roughness:0.68, metalness:0.02});
+    })();
+
     // chest vest visible when looking down (upper body from bodycam)
     const chestGroup=new THREE.Group(); chestGroup.position.set(0,-0.42,-0.28);
     const chestVest=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.40,0.08),mats.vest); chestVest.position.set(0,0,0.04); chestGroup.add(chestVest);
-    // 3 mag pouches front (as seen from bodycam looking down)
     for(let i=-1;i<=1;i++){
       const mp=new THREE.Mesh(new THREE.BoxGeometry(0.11,0.14,0.06),mats.pouch); mp.position.set(i*0.11,-0.02,0.09); chestGroup.add(mp);
       const buck=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.02,0.02),mats.buckle); buck.position.set(i*0.11,0.03,0.12); chestGroup.add(buck);
     }
-    // admin pouch
     const admin=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.09,0.04),mats.pouch); admin.position.set(0,0.12,0.08); chestGroup.add(admin);
-    // straps
     const strapL=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.04,0.18),mats.vest); strapL.position.set(-0.13,0.18,0); chestGroup.add(strapL);
     const strapR=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.04,0.18),mats.vest); strapR.position.set(0.13,0.18,0); chestGroup.add(strapR);
     fpGroup.add(chestGroup);
     fpGroup.userData.chest=chestGroup;
 
-    // Left arm - from shoulder to hand, sleeve #3d3a33, elbow pad, black glove
+    // Left arm - SUPPORT HAND as per reference POV: forearm skin exposed, black glove, black watch, sling over arm
+    // Reference shows left forearm with skin, watch, glove holding handguard
     const leftArm=new THREE.Group(); leftArm.position.set(-0.28,-0.22,-0.18);
-    const lUpper=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.075,0.32,8),mats.uniform); lUpper.position.set(0,-0.10,0); lUpper.rotation.z=0.35; lUpper.rotation.x=-0.4; lUpper.castShadow=true; leftArm.add(lUpper);
-    const lElbow=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,8),mats.knee); lElbow.position.set(0.06,-0.28,0.05); leftArm.add(lElbow);
-    const lFore=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.065,0.30,8),mats.uniform); lFore.position.set(0.14,-0.32,0.18); lFore.rotation.x=-0.9; lFore.rotation.z=-0.15; lFore.castShadow=true; leftArm.add(lFore);
-    const lGlove=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.08,0.12),mats.glove); lGlove.position.set(0.18,-0.30,0.34); lGlove.rotation.x=-0.2; lGlove.rotation.y=0.1; leftArm.add(lGlove);
-    const lGloveFingers=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.06,0.10),mats.glove); lGloveFingers.position.set(0.20,-0.30,0.42); leftArm.add(lGloveFingers);
+    const lUpper=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.075,0.28,8),mats.uniform); lUpper.position.set(0,-0.08,0); lUpper.rotation.z=0.35; lUpper.rotation.x=-0.4; lUpper.castShadow=true; leftArm.add(lUpper);
+    const lElbow=new THREE.Mesh(new THREE.SphereGeometry(0.085,8,8),mats.knee); lElbow.position.set(0.05,-0.24,0.03); leftArm.add(lElbow);
+    // forearm - SKIN as per reference (rolled sleeve, skin visible)
+    const lForeSkin=new THREE.Mesh(new THREE.CylinderGeometry(0.062,0.058,0.28,10),skinMatWithHair); lForeSkin.position.set(0.12,-0.28,0.16); lForeSkin.rotation.x=-0.9; lForeSkin.rotation.z=-0.12; lForeSkin.castShadow=true; leftArm.add(lForeSkin);
+    // watch - black tactical watch as per reference image
+    const watchBand=new THREE.Mesh(new THREE.CylinderGeometry(0.065,0.065,0.04,12),new THREE.MeshStandardMaterial({color:0x0a0a0a, roughness:0.5, metalness:0.2})); watchBand.position.set(0.12,-0.22,0.14); watchBand.rotation.x=-0.9; watchBand.rotation.z=-0.12; leftArm.add(watchBand);
+    const watchFace=new THREE.Mesh(new THREE.CylinderGeometry(0.032,0.032,0.045,10),new THREE.MeshStandardMaterial({color:0x111111, roughness:0.3, metalness:0.5})); watchFace.position.set(0.12,-0.22,0.17); watchFace.rotation.x=-0.9; watchFace.rotation.z=-0.12; leftArm.add(watchFace);
+    // glove - black as per reference
+    const lGlove=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.08,0.12),mats.glove); lGlove.position.set(0.16,-0.30,0.32); lGlove.rotation.x=-0.2; lGlove.rotation.y=0.1; leftArm.add(lGlove);
+    const lGloveFingers=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.06,0.10),mats.glove); lGloveFingers.position.set(0.18,-0.30,0.40); leftArm.add(lGloveFingers);
+    // sling strap over forearm (black nylon) - as per reference
+    const slingOverArm=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.02,0.35),new THREE.MeshStandardMaterial({color:0x0a0a0a, roughness:0.8, metalness:0.05})); slingOverArm.position.set(0.13,-0.26,0.18); slingOverArm.rotation.x=-0.9; slingOverArm.rotation.z=-0.12; slingOverArm.rotation.y=0.1; leftArm.add(slingOverArm);
     fpGroup.add(leftArm);
 
-    // Right arm - holding rifle
+    // Right arm - firing hand, black glove, forearm skin with rolled sleeve
     const rightArm=new THREE.Group(); rightArm.position.set(0.28,-0.24,-0.18);
-    const rUpper=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.075,0.32,8),mats.uniform); rUpper.position.set(0,-0.10,0); rUpper.rotation.z=-0.35; rUpper.rotation.x=-0.45; rUpper.castShadow=true; rightArm.add(rUpper);
-    const rElbow=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,8),mats.knee); rElbow.position.set(-0.06,-0.28,0.05); rightArm.add(rElbow);
-    const rFore=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.065,0.30,8),mats.uniform); rFore.position.set(-0.12,-0.34,0.18); rFore.rotation.x=-1.0; rFore.rotation.z=0.15; rFore.castShadow=true; rightArm.add(rFore);
-    const rGlove=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.08,0.12),mats.glove); rGlove.position.set(-0.16,-0.32,0.34); rGlove.rotation.x=-0.15; rightArm.add(rGlove);
-    const rGloveFingers=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.06,0.10),mats.glove); rGloveFingers.position.set(-0.18,-0.32,0.42); rightArm.add(rGloveFingers);
+    const rUpper=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.075,0.28,8),mats.uniform); rUpper.position.set(0,-0.08,0); rUpper.rotation.z=-0.35; rUpper.rotation.x=-0.45; rUpper.castShadow=true; rightArm.add(rUpper);
+    const rElbow=new THREE.Mesh(new THREE.SphereGeometry(0.085,8,8),mats.knee); rElbow.position.set(-0.05,-0.24,0.03); rightArm.add(rElbow);
+    const rForeSkin=new THREE.Mesh(new THREE.CylinderGeometry(0.062,0.058,0.26,10),skinMat); rForeSkin.position.set(-0.10,-0.30,0.16); rForeSkin.rotation.x=-1.0; rForeSkin.rotation.z=0.12; rForeSkin.castShadow=true; rightArm.add(rForeSkin);
+    const rGlove=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.08,0.12),mats.glove); rGlove.position.set(-0.14,-0.32,0.32); rGlove.rotation.x=-0.15; rightArm.add(rGlove);
+    const rGloveFingers=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.06,0.10),mats.glove); rGloveFingers.position.set(-0.16,-0.32,0.40); rightArm.add(rGloveFingers);
     fpGroup.add(rightArm);
 
     fpGroup.userData.leftArm=leftArm; fpGroup.userData.rightArm=rightArm;
@@ -874,42 +925,70 @@ class WeaponSystem{
     this.createRifle(); this.createFirstPersonBody(); this.createFlashlight(); this.sway=new THREE.Vector3(); this.aiming=false;
   }
   createRifle(){
-    // Rifle matching reference image: M4-style with optic, suppressor, vertical foregrip, tactical light
+    // Rifle matching POV reference image: AR with EOTech holographic sight, front sight post, quad rail, sling, suppressor
     const mats=ReferenceSoldierBuilder.getMaterials();
     const rifle=new THREE.Group();
     // receiver
-    const rec=new THREE.Mesh(new THREE.BoxGeometry(0.052,0.068,0.34),mats.metal); rec.position.set(0,-0.06,-0.26); rec.castShadow=true; rifle.add(rec);
-    // handguard (M-LOK)
-    const hg=new THREE.Mesh(new THREE.BoxGeometry(0.058,0.058,0.30),mats.plastic); hg.position.set(0,-0.055,-0.54); hg.castShadow=true; rifle.add(hg);
+    const rec=new THREE.Mesh(new THREE.BoxGeometry(0.054,0.070,0.34),mats.metal); rec.position.set(0,-0.06,-0.26); rec.castShadow=true; rifle.add(rec);
+    // handguard - quad rail as per reference (more detailed)
+    const hg=new THREE.Mesh(new THREE.BoxGeometry(0.062,0.062,0.34),mats.plastic); hg.position.set(0,-0.055,-0.56); hg.castShadow=true; rifle.add(hg);
+    // rail covers / details
+    for(let i=0;i<4;i++){
+      const rail=new THREE.Mesh(new THREE.BoxGeometry(0.064,0.008,0.34),mats.metal); rail.position.set(0, i===0?0.032: i===1?-0.032:0, -0.56); if(i>=2){ rail.position.set(i===2?-0.032:0.032,0,-0.56); rail.rotation.z=Math.PI/2; } rifle.add(rail);
+    }
     // barrel
-    const barrelGeo=new THREE.CylinderGeometry(0.013,0.013,0.42,10); barrelGeo.rotateX(Math.PI/2);
-    const barrel=new THREE.Mesh(barrelGeo,mats.metal); barrel.position.set(0,-0.055,-0.76); barrel.castShadow=true; rifle.add(barrel);
-    // suppressor (as per reference first image - long)
-    const suppGeo=new THREE.CylinderGeometry(0.024,0.024,0.20,12); suppGeo.rotateX(Math.PI/2);
-    const supp=new THREE.Mesh(suppGeo,mats.metal); supp.position.set(0,-0.055,-1.04); supp.castShadow=true; rifle.add(supp);
-    // stock (collapsible)
+    const barrelGeo=new THREE.CylinderGeometry(0.013,0.013,0.44,10); barrelGeo.rotateX(Math.PI/2);
+    const barrel=new THREE.Mesh(barrelGeo,mats.metal); barrel.position.set(0,-0.055,-0.80); barrel.castShadow=true; rifle.add(barrel);
+    // front sight post (A2 style as per reference image)
+    const frontSightBase=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.04,0.02),mats.metal); frontSightBase.position.set(0,0.04,-0.92); rifle.add(frontSightBase);
+    const frontSightPost=new THREE.Mesh(new THREE.CylinderGeometry(0.004,0.004,0.04,6),mats.metal); frontSightPost.position.set(0,0.07,-0.92); rifle.add(frontSightPost);
+    const frontSightWings=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.02,0.01),mats.metal); frontSightWings.position.set(0,0.06,-0.92); rifle.add(frontSightWings);
+    // suppressor / flash hider (reference shows flash hider, not long suppressor)
+    const flashHiderGeo=new THREE.CylinderGeometry(0.018,0.022,0.08,8); flashHiderGeo.rotateX(Math.PI/2);
+    const flashHider=new THREE.Mesh(flashHiderGeo,mats.metal); flashHider.position.set(0,-0.055,-1.04); rifle.add(flashHider);
+    // stock (collapsible CTR style)
     const stock=new THREE.Mesh(new THREE.BoxGeometry(0.045,0.09,0.24),mats.plastic); stock.position.set(0,-0.04,-0.06); stock.castShadow=true; rifle.add(stock);
     const stockTube=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,0.18,8),mats.metal); stockTube.rotation.x=Math.PI/2; stockTube.position.set(0,-0.04,-0.18); rifle.add(stockTube);
     // magazine (polymer)
     const mag=new THREE.Mesh(new THREE.BoxGeometry(0.036,0.16,0.072),mats.plastic); mag.position.set(0,-0.17,-0.24); mag.castShadow=true; rifle.add(mag); this.magMesh=mag;
-    // optic - boxy tactical scope as per reference
-    const opticBody=new THREE.Mesh(new THREE.BoxGeometry(0.032,0.052,0.20),mats.metal); opticBody.position.set(0,0.015,-0.28); opticBody.castShadow=true; rifle.add(opticBody);
-    const opticLensF=new THREE.Mesh(new THREE.CylinderGeometry(0.020,0.020,0.015,10),new THREE.MeshStandardMaterial({color:0x1e2e3a, roughness:0.1, metalness:0.9})); opticLensF.rotation.x=Math.PI/2; opticLensF.position.set(0,0.015,-0.38); rifle.add(opticLensF);
-    const opticLensR=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.012,10),new THREE.MeshStandardMaterial({color:0x1e2e3a, roughness:0.1, metalness:0.9})); opticLensR.rotation.x=Math.PI/2; opticLensR.position.set(0,0.015,-0.18); rifle.add(opticLensR);
-    // vertical foregrip (as per reference)
-    const vfg=new THREE.Mesh(new THREE.CylinderGeometry(0.019,0.019,0.13,8),mats.plastic); vfg.position.set(0,-0.12,-0.52); vfg.castShadow=true; rifle.add(vfg);
-    // tactical light / laser module
-    const tacLight=new THREE.Mesh(new THREE.BoxGeometry(0.032,0.032,0.12),mats.metal); tacLight.position.set(0.032,-0.03,-0.60); rifle.add(tacLight);
+    // EOTech holographic sight - matches reference POV image exactly
+    // EOTech EXPS style: large window, hood, base
+    const eotechBase=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.04,0.14),mats.metal); eotechBase.position.set(0,0.045,-0.26); eotechBase.castShadow=true; rifle.add(eotechBase);
+    const eotechHood=new THREE.Mesh(new THREE.BoxGeometry(0.072,0.068,0.12),new THREE.MeshStandardMaterial({color:0x0e0e0e, roughness:0.7, metalness:0.2})); eotechHood.position.set(0,0.075,-0.26); eotechHood.castShadow=true; rifle.add(eotechHood);
+    // EOTech window - large rectangular glass
+    const eotechGlass=new THREE.Mesh(new THREE.BoxGeometry(0.055,0.045,0.01),new THREE.MeshStandardMaterial({color:0x2a3a2a, roughness:0.05, metalness:0.95, transparent:true, opacity:0.65})); eotechGlass.position.set(0,0.075,-0.20); rifle.add(eotechGlass);
+    // EOTech reticle hint (red dot)
+    const eotechReticle=new THREE.Mesh(new THREE.BoxGeometry(0.002,0.002,0.001),new THREE.MeshBasicMaterial({color:0xff2222})); eotechReticle.position.set(0,0.075,-0.195); rifle.add(eotechReticle);
+    // magnifier behind EOTech (as seen in reference - small scope behind)
+    const magnifier=new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.028,0.10,12),mats.metal); magnifier.rotation.x=Math.PI/2; magnifier.position.set(0,0.045,-0.14); magnifier.castShadow=true; rifle.add(magnifier);
+    const magnifierMount=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.04,0.06),mats.metal); magnifierMount.position.set(0,0.02,-0.14); rifle.add(magnifierMount);
+    // vertical foregrip / handstop (reference shows vertical grip)
+    const vfg=new THREE.Mesh(new THREE.CylinderGeometry(0.019,0.019,0.11,8),mats.plastic); vfg.position.set(0,-0.12,-0.54); vfg.castShadow=true; rifle.add(vfg);
+    // tactical light on side rail
+    const tacLight=new THREE.Mesh(new THREE.BoxGeometry(0.028,0.028,0.10),mats.metal); tacLight.position.set(0.035,-0.02,-0.62); rifle.add(tacLight);
     // pistol grip
     const grip=new THREE.Mesh(new THREE.BoxGeometry(0.042,0.13,0.065),mats.plastic); grip.position.set(0,-0.11,0.06); grip.rotation.x=0.22; grip.castShadow=true; rifle.add(grip);
     // charging handle
     const ch=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.02,0.04),mats.metal); ch.position.set(0,0.02,-0.08); rifle.add(ch);
-    // sling mount
-    const sling=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.04,0.02),mats.buckle); sling.position.set(0,-0.02,-0.10); rifle.add(sling);
+    // sling - black nylon 2-point sling as per reference POV image (visible strap)
+    const slingMat=new THREE.MeshStandardMaterial({color:0x0a0a0a, roughness:0.85, metalness:0.05});
+    const slingFront=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.01,0.08),slingMat); slingFront.position.set(-0.03,-0.03,-0.68); rifle.add(slingFront);
+    const slingRear=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.01,0.06),slingMat); slingRear.position.set(-0.03,-0.02,-0.10); rifle.add(slingRear);
+    // sling strap slack (curved) - visible in POV
+    const slingStrapCurve=new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.03,-0.03,-0.68),
+      new THREE.Vector3(-0.08,-0.12,-0.40),
+      new THREE.Vector3(-0.06,-0.10,-0.10)
+    ]);
+    const slingStrapGeo=new THREE.TubeGeometry(slingStrapCurve, 12, 0.008, 4, false);
+    const slingStrap=new THREE.Mesh(slingStrapGeo,slingMat); rifle.add(slingStrap);
+    // sling swivel buckles
+    const buckle1=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.02,0.01),mats.buckle); buckle1.position.set(-0.03,-0.03,-0.65); rifle.add(buckle1);
+    const buckle2=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.02,0.01),mats.buckle); buckle2.position.set(-0.03,-0.02,-0.12); rifle.add(buckle2);
 
     rifle.position.set(0.22,-0.18,-0.42); rifle.rotation.set(0.05,-0.08,0.02);
     this.rifle=rifle; this.group.add(rifle);
-    this.muzzleLight=new THREE.PointLight(0xffaa55,0,3); this.muzzleLight.position.set(0,-0.055,-1.14); rifle.add(this.muzzleLight);
+    this.muzzleLight=new THREE.PointLight(0xffaa55,0,3); this.muzzleLight.position.set(0,-0.055,-1.08); rifle.add(this.muzzleLight);
   }
   createFirstPersonBody(){
     // First-person arms & chest matching reference soldier - same materials, same proportions
