@@ -256,6 +256,11 @@ const loaderFill=document.getElementById('loader-fill');
 const loadingText=document.getElementById('loading-text');
 function setLoad(p,t){ loaderFill.style.width=p+'%'; if(t) loadingText.textContent=t; }
 
+// --- GAME STATE (must be before orientation check) ---
+let worldData=null;
+let gameState='init'; // init, playing, transitioning, dead
+let objectivePackage=null;
+
 // --- ORIENTATION GATE ---
 const orientGate=document.getElementById('orientation-gate');
 const startScreen=document.getElementById('start-screen');
@@ -267,9 +272,11 @@ function checkOrientation(){
   } else {
     orientGate.classList.add('hidden');
     // if not started, show start screen
-    if(gameState==='init'){
-      startScreen.classList.remove('hidden');
-    }
+    try{
+      if(typeof gameState!=='undefined' && gameState==='init'){
+        startScreen.classList.remove('hidden');
+      }
+    }catch(e){}
   }
 }
 window.addEventListener('resize', checkOrientation);
@@ -817,7 +824,9 @@ const composer=new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene,camera));
 const bloomPass=new UnrealBloomPass(new THREE.Vector2(window.innerWidth,window.innerHeight), settings.gfxQuality==='low'?0.08:0.16, 0.35,0.85);
 composer.addPass(bloomPass);
-const bodyCamPass=new ShaderPass(BodyCamShader); composer.addPass(bodyCamPass);
+const bodyCamPass=new ShaderPass(BodyCamShader);
+bodyCamPass.enabled = settings.gfxBodycam;
+composer.addPass(bodyCamPass);
 
 setLoad(28,'Audio & Systems...');
 const audioManager=new AudioManager();
@@ -826,9 +835,7 @@ const bodyCamera=new BodyCamera(camera);
 const weapon=new WeaponSystem(scene,camera,audioManager);
 const buildingGen=new BuildingGenerator(scene);
 const enemyManager=new EnemyManager(scene);
-let worldData=null;
-let gameState='init'; // init, playing, transitioning, dead
-let objectivePackage=null;
+// worldData, gameState, objectivePackage already defined at top for orientation gate
 
 // --- INPUT ABSTRACTION (MOBILE-FIRST) ---
 const input={
@@ -1036,7 +1043,7 @@ function loadLevel(index){
   document.getElementById('fire-mode').textContent=`${weapon.fireMode.toUpperCase()} • LIGHT ${player.flashlightOn?'ON':'OFF'}`;
   scene.fog=new THREE.FogExp2(def.isNight?0x080810:0x9aa0a8, def.isNight?0.032:0.018);
   scene.background=new THREE.Color(def.isNight?0x06080f:0xc8d0d8);
-  document.getElementById('debug-sector').textContent=def.internalId;
+  document.getElementById('debug-sector').textContent=`${def.opName} • ${def.codename}`;
   saveProgression();
 }
 
@@ -1102,7 +1109,7 @@ bindRange('vol-breath','volBreath');
 document.getElementById('gfx-quality').value=settings.gfxQuality;
 document.getElementById('gfx-quality').addEventListener('change', (e)=>{ settings.gfxQuality=e.target.value; saveSettings(); location.reload(); });
 document.getElementById('gfx-bodycam').checked=settings.gfxBodycam;
-document.getElementById('gfx-bodycam').addEventListener('change', (e)=>{ settings.gfxBodycam=e.target.checked; saveSettings(); });
+document.getElementById('gfx-bodycam').addEventListener('change', (e)=>{ settings.gfxBodycam=e.target.checked; saveSettings(); bodyCamPass.enabled=e.target.checked; });
 document.getElementById('gfx-shadows').checked=settings.gfxShadows;
 document.getElementById('gfx-shadows').addEventListener('change', (e)=>{ settings.gfxShadows=e.target.checked; saveSettings(); location.reload(); });
 
