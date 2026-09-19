@@ -1,0 +1,19 @@
+{
+  "name": "breach-bodycam-cqb",
+  "version": "1.0.0",
+  "description": "Hyper-realistic tactical body-camera CQB game - BODYCAM-level realism, original creation",
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 8000",
+    "start": "python3 -m http.server 8000",
+    "build": "echo 'No build needed - single file Three.js game'",
+    "preview": "python3 -m http.server 8000"
+  },
+  "keywords": ["fps", "tactical", "bodycam", "cqb", "realism", "threejs", "ue5"],
+  "author": "Arena.ai Agent",
+  "license": "MIT",
+  "dependencies": {
+    "three": "^0.160.0",
+    "cannon-es": "^0.20.0"
+  }
+}
