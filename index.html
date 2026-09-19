@@ -560,10 +560,11 @@ class ReferenceSoldierBuilder{
     };
     return this._mats;
   }
-  // Full body enemy mesh - consistent from all angles
+  // Full body enemy mesh - consistent from all angles, with LOD for mobile performance
   static createEnemyMesh(){
     const mats=this.getMaterials();
     const group=new THREE.Group();
+    const isLow = (typeof settings!=='undefined' && settings.gfxQuality==='low');
 
     // --- LEGS (tactical trousers with knee pads, boots) ---
     const legGeoUpper=new THREE.CylinderGeometry(0.13,0.12,0.38,8);
@@ -571,21 +572,21 @@ class ReferenceSoldierBuilder{
     // Left leg
     const leftLeg=new THREE.Group(); leftLeg.position.set(-0.13,0.38,0);
     const lUpper=new THREE.Mesh(legGeoUpper,mats.uniform); lUpper.position.y=0.32; lUpper.castShadow=true; leftLeg.add(lUpper);
-    const lLower=new THREE.Mesh(legGeoLower,mats.uniform); lLower.position.y=-0.08; lLower.castShadow=true; leftLeg.add(lLower);
-    // cargo pocket left
-    const lCargo=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.14,0.06),mats.pouch); lCargo.position.set(-0.08,0.05,0.06); leftLeg.add(lCargo);
-    // knee pad left (integrated, prominent)
-    const lKnee=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.18,0.12),mats.knee); lKnee.position.set(0,0.08,0.08); lKnee.castShadow=true; leftLeg.add(lKnee);
-    const lKneeStrap=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.03,0.13),mats.uniformDark); lKneeStrap.position.set(0,0.16,0.07); leftLeg.add(lKneeStrap);
-    const lBoot=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.14,0.28),mats.boot); lBoot.position.set(0,-0.34,0.05); lBoot.castShadow=true; leftLeg.add(lBoot);
+    const lLower=new THREE.Mesh(legGeoLower,mats.uniform); lLower.position.y=-0.08; lLower.castShadow=!isLow&&settings.gfxShadows; leftLeg.add(lLower);
+    // cargo pocket left - skip on low for performance
+    if(!isLow){ const lCargo=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.14,0.06),mats.pouch); lCargo.position.set(-0.08,0.05,0.06); leftLeg.add(lCargo); }
+    // knee pad left (integrated, prominent) - always keep (core silhouette)
+    const lKnee=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.18,0.12),mats.knee); lKnee.position.set(0,0.08,0.08); lKnee.castShadow=!isLow&&settings.gfxShadows; leftLeg.add(lKnee);
+    if(!isLow){ const lKneeStrap=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.03,0.13),mats.uniformDark); lKneeStrap.position.set(0,0.16,0.07); leftLeg.add(lKneeStrap); }
+    const lBoot=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.14,0.28),mats.boot); lBoot.position.set(0,-0.34,0.05); lBoot.castShadow=!isLow&&settings.gfxShadows; leftLeg.add(lBoot);
     const lBootSole=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.04,0.29),mats.buckle); lBootSole.position.set(0,-0.41,0.05); leftLeg.add(lBootSole);
     group.add(leftLeg);
 
     // Right leg
     const rightLeg=new THREE.Group(); rightLeg.position.set(0.13,0.38,0);
-    const rUpper=new THREE.Mesh(legGeoUpper,mats.uniform); rUpper.position.y=0.32; rUpper.castShadow=true; rightLeg.add(rUpper);
-    const rLower=new THREE.Mesh(legGeoLower,mats.uniform); rLower.position.y=-0.08; rLower.castShadow=true; rightLeg.add(rLower);
-    const rCargo=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.14,0.06),mats.pouch); rCargo.position.set(0.08,0.05,0.06); rightLeg.add(rCargo);
+    const rUpper=new THREE.Mesh(legGeoUpper,mats.uniform); rUpper.position.y=0.32; rUpper.castShadow=!isLow&&settings.gfxShadows; rightLeg.add(rUpper);
+    const rLower=new THREE.Mesh(legGeoLower,mats.uniform); rLower.position.y=-0.08; rLower.castShadow=!isLow&&settings.gfxShadows; rightLeg.add(rLower);
+    if(!isLow){ const rCargo=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.14,0.06),mats.pouch); rCargo.position.set(0.08,0.05,0.06); rightLeg.add(rCargo); }
     const rKnee=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.18,0.12),mats.knee); rKnee.position.set(0,0.08,0.08); rKnee.castShadow=true; rightLeg.add(rKnee);
     const rKneeStrap=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.03,0.13),mats.uniformDark); rKneeStrap.position.set(0,0.16,0.07); rightLeg.add(rKneeStrap);
     const rBoot=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.14,0.28),mats.boot); rBoot.position.set(0,-0.34,0.05); rBoot.castShadow=true; rightLeg.add(rBoot);
