@@ -1212,8 +1212,10 @@ function animate(){
   const now=performance.now(); const dt=Math.min((now-lastTime)/1000,0.05); lastTime=now;
   if(gameState==='playing'){
     const moveSpeed = input.sprint?4.0:2.0;
-    const forward=new THREE.Vector3(Math.sin(player.yaw),0,Math.cos(player.yaw));
-    const right=new THREE.Vector3(Math.sin(player.yaw+Math.PI/2),0,Math.cos(player.yaw+Math.PI/2));
+    // FIX: forward was inverted (was sin,cos vs -sin,-cos). Camera looks -Z at yaw 0, so forward = -sin,-cos.
+    // This ensures touch forward -> positive forward movement -> moves toward facing direction.
+    const forward=new THREE.Vector3(-Math.sin(player.yaw),0,-Math.cos(player.yaw));
+    const right=new THREE.Vector3(Math.cos(player.yaw),0,-Math.sin(player.yaw));
     const wishDir=new THREE.Vector3(); wishDir.addScaledVector(forward,input.move.y); wishDir.addScaledVector(right,input.move.x);
     if(wishDir.length()>0) wishDir.normalize();
     const targetVel=wishDir.multiplyScalar(moveSpeed); player.velocity.lerp(targetVel, dt*(input.sprint?6:10));
